@@ -1,6 +1,6 @@
 /* =====================================================
-   BEATLIFE CONTENT STUDIO - APP.JS v3.0
-   FASE 3: VISUALIZAÇÃO PREMIUM OZEMPIC
+   BEATLIFE CONTENT STUDIO - APP.JS v3.1
+   REVISÃO: Melhorias de UX, Loading States e Cache
    ===================================================== */
 
 // =====================================================
@@ -10,6 +10,71 @@ const supabase = window.supabase.createClient(
     SUPABASE_CONFIG.url,
     SUPABASE_CONFIG.anonKey
 );
+
+// =====================================================
+// LOADING STATES E UX
+// =====================================================
+function showLoading(container, message = 'Carregando...') {
+    if (typeof container === 'string') {
+        container = document.getElementById(container);
+    }
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+function showSkeleton(container, count = 3) {
+    if (typeof container === 'string') {
+        container = document.getElementById(container);
+    }
+    if (!container) return;
+
+    container.innerHTML = Array(count).fill().map(() => `
+        <div class="skeleton-card">
+            <div class="skeleton-line" style="width: 60%"></div>
+            <div class="skeleton-line" style="width: 90%"></div>
+            <div class="skeleton-line" style="width: 40%"></div>
+        </div>
+    `).join('');
+}
+
+// =====================================================
+// CACHE LOCAL (LOCALSTORAGE)
+// =====================================================
+const CACHE_KEY = 'beatlife_cache';
+const CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutos
+
+function getCache(key) {
+    try {
+        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        const item = cache[key];
+        if (item && Date.now() - item.timestamp < CACHE_EXPIRY) {
+            return item.data;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+function setCache(key, data) {
+    try {
+        const cache = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+        cache[key] = { data, timestamp: Date.now() };
+        localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        console.warn('Cache error:', e);
+    }
+}
+
+function clearCache() {
+    localStorage.removeItem(CACHE_KEY);
+}
 
 // =====================================================
 // ESTADO GLOBAL
@@ -1333,6 +1398,17 @@ function reindexarSlides() {
         item.querySelectorAll('.slide-action-btn')[2].setAttribute('onclick', `removerSlide(${idx})`);
     });
     atualizarContadorSlides();
+}
+
+// Funções auxiliares para atualização de slides e prompts
+function atualizarSlide(index, campo, valor) {
+    // Atualização é feita diretamente no DOM e coletada no salvar
+    console.log(`Slide ${index} - ${campo}: ${valor}`);
+}
+
+function atualizarPrompt(tipo, index, campo, valor) {
+    // Atualização é feita diretamente no DOM e coletada no salvar
+    console.log(`Prompt ${tipo} ${index} - ${campo}: ${valor}`);
 }
 
 function atualizarContadorSlides() {

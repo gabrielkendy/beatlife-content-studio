@@ -2938,3 +2938,194 @@ body {
     color: var(--cinza-500);
     margin-top: 4px;
 }
+
+/* =====================================================
+   LOADING STATES E SKELETON LOADERS
+   ===================================================== */
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--cinza-500);
+}
+
+.loading-state p {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--cinza-200);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Skeleton Cards */
+.skeleton-card {
+    background: var(--cinza-100);
+    border-radius: var(--border-radius-sm);
+    padding: 20px;
+    margin-bottom: 12px;
+}
+
+.skeleton-line {
+    height: 12px;
+    background: linear-gradient(90deg, var(--cinza-200) 25%, var(--cinza-100) 50%, var(--cinza-200) 75%);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-line:last-child {
+    margin-bottom: 0;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Skeleton para cards maiores */
+.skeleton-card-lg {
+    background: var(--branco);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    margin-bottom: 15px;
+    box-shadow: var(--shadow);
+}
+
+.skeleton-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.skeleton-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, var(--cinza-200) 25%, var(--cinza-100) 50%, var(--cinza-200) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-title {
+    height: 18px;
+    width: 60%;
+    background: linear-gradient(90deg, var(--cinza-200) 25%, var(--cinza-100) 50%, var(--cinza-200) 75%);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Button loading state */
+.btn-loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid transparent;
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+/* Fade in animation para conteúdo carregado */
+.fade-in {
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* =====================================================
+   MELHORIAS DE RESPONSIVIDADE MOBILE
+   ===================================================== */
+
+@media (max-width: 480px) {
+    .biblioteca-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .modal {
+        margin: 5px;
+        max-height: calc(100vh - 10px);
+        border-radius: var(--border-radius-sm);
+    }
+
+    .modal-header, .modal-body, .modal-footer {
+        padding: 15px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .page-header h1 {
+        font-size: 24px;
+    }
+
+    .header-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .stat-card {
+        padding: 15px;
+    }
+
+    .stat-value {
+        font-size: 28px;
+    }
+
+    .filtros-bar {
+        gap: 8px;
+    }
+
+    .filtro-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .toast-container {
+        left: 10px;
+        right: 10px;
+        bottom: 20px;
+    }
+
+    .toast {
+        min-width: auto;
+    }
+}

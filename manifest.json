@@ -1,0 +1,39 @@
+{
+  "name": "Content Studio - The Beat Life Club",
+  "short_name": "Content Studio",
+  "description": "Sistema de planejamento de conteúdo para Instagram",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c1f32",
+  "theme_color": "#0c1f32",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "pt-BR",
+  "categories": ["productivity", "social"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230c1f32'/><text x='50' y='55' text-anchor='middle' font-size='60' fill='%23cba052'>☆</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/#dashboard",
+      "description": "Ver dashboard"
+    },
+    {
+      "name": "Planejamento",
+      "url": "/#planejamento",
+      "description": "Ver planejamento anual"
+    },
+    {
+      "name": "Demandas",
+      "url": "/#demandas",
+      "description": "Ver kanban de demandas"
+    }
+  ]
+}

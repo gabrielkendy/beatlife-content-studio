@@ -2,45 +2,73 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <meta name="description" content="Content Studio - Sistema de planejamento de conteúdo para Instagram. Gerencie posts, demandas e briefings do The Beat Life Club.">
+    <meta name="keywords" content="content studio, planejamento conteúdo, instagram, social media, the beat life">
+    <meta name="author" content="The Beat Life Club">
+    <meta name="theme-color" content="#0c1f32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Content Studio">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Content Studio | The Beat Life Club">
+    <meta property="og:description" content="Sistema de planejamento de conteúdo para Instagram">
+    <meta property="og:locale" content="pt_BR">
+
     <title>Content Studio | The Beat Life Club</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☆</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☆</text></svg>">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Bodoni:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Styles -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <!-- SIDEBAR -->
-    <aside class="sidebar">
+    <aside class="sidebar" role="navigation" aria-label="Menu principal">
         <div class="sidebar-header">
             <div class="logo">
-                <span class="logo-icon">☆</span>
+                <span class="logo-icon" aria-hidden="true">☆</span>
                 <div class="logo-text">
                     <span class="logo-title">THE BEAT</span>
                     <span class="logo-subtitle">Content Studio</span>
                 </div>
             </div>
         </div>
-        
-        <nav class="sidebar-nav">
-            <a href="#" class="nav-item active" data-tab="dashboard">
-                <span class="nav-icon">📊</span>
+
+        <nav class="sidebar-nav" aria-label="Navegação principal">
+            <a href="#" class="nav-item active" data-tab="dashboard" aria-current="page" role="button">
+                <span class="nav-icon" aria-hidden="true">📊</span>
                 <span class="nav-label">Dashboard</span>
             </a>
-            <a href="#" class="nav-item" data-tab="planejamento">
-                <span class="nav-icon">📅</span>
+            <a href="#" class="nav-item" data-tab="planejamento" role="button">
+                <span class="nav-icon" aria-hidden="true">📅</span>
                 <span class="nav-label">Planejamento</span>
             </a>
-            <a href="#" class="nav-item" data-tab="biblioteca">
-                <span class="nav-icon">📚</span>
+            <a href="#" class="nav-item" data-tab="biblioteca" role="button">
+                <span class="nav-icon" aria-hidden="true">📚</span>
                 <span class="nav-label">Biblioteca</span>
             </a>
-            <a href="#" class="nav-item" data-tab="demandas">
-                <span class="nav-icon">📋</span>
+            <a href="#" class="nav-item" data-tab="demandas" role="button">
+                <span class="nav-icon" aria-hidden="true">📋</span>
                 <span class="nav-label">Demandas</span>
             </a>
-            <a href="#" class="nav-item" data-tab="anotacoes">
-                <span class="nav-icon">📝</span>
+            <a href="#" class="nav-item" data-tab="anotacoes" role="button">
+                <span class="nav-icon" aria-hidden="true">📝</span>
                 <span class="nav-label">Anotações</span>
             </a>
         </nav>
@@ -54,7 +82,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="main-content">
+    <main class="main-content" role="main" aria-label="Conteúdo principal">
         
         <!-- ================================================== -->
         <!-- DASHBOARD TAB -->
@@ -280,8 +308,8 @@
     </main>
 
     <!-- MODAL CONTAINER -->
-    <div class="modal-overlay hidden" id="modalOverlay">
-        <div class="modal" id="modalContent">
+    <div class="modal-overlay hidden" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal" id="modalContent" role="document">
             <!-- Conteúdo do modal será injetado via JS -->
         </div>
     </div>
