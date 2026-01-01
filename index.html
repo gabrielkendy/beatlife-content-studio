@@ -35,7 +35,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Styles -->
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=3.4">
 </head>
 <body>
     <!-- SIDEBAR -->
@@ -95,7 +95,8 @@
                         <p class="page-desc">Visão geral do seu conteúdo</p>
                     </div>
                 </div>
-                <div class="header-right">
+                <div class="header-right header-actions">
+                    <button class="btn-icon" onclick="abrirModalExportImport()" title="Backup">📦</button>
                     <span id="dataAtual" style="color: var(--cinza-500); font-size: 14px;"></span>
                 </div>
             </header>
@@ -212,7 +213,7 @@
                     </div>
                 </div>
                 <div class="header-right">
-                    <button class="btn-primary" id="btnNovoConteudoPronto">+ Adicionar Conteúdo</button>
+                    <button class="btn-primary" onclick="abrirModalUpload()">📤 Upload de Mídia</button>
                 </div>
             </header>
             <div class="filtros-bar mb-20">
@@ -317,7 +318,7 @@
     <!-- TOAST NOTIFICATIONS -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="config.js"></script>
-    <script src="app.js"></script>
+    <script src="config.js?v=3.4"></script>
+    <script src="app.js?v=3.4"></script>
 </body>
 </html>
