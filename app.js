@@ -1,6 +1,8 @@
 /* ========================================
-   BEATLIFE CONTENT STUDIO v4.0
+   BEATLIFE CONTENT STUDIO v4.1
    JavaScript Limpo e Funcional
+   + Markdown Support
+   + Claude Desktop API
    ======================================== */
 
 // ====================
@@ -27,7 +29,8 @@ const state = {
     demandas: [],
     anotacoes: [],
     briefings: [],
-    filtro: 'todos'
+    filtro: 'todos',
+    currentMarkdown: null // Para o visualizador de markdown
 };
 
 // ====================
@@ -265,7 +268,7 @@ const App = {
                 <div class="empty-state">
                     <span class="empty-icon">📁</span>
                     <h3>Biblioteca vazia</h3>
-                    <p>Faca upload de imagens e videos</p>
+                    <p>Faca upload de imagens, videos e arquivos Markdown</p>
                     <button class="btn btn-primary" onclick="App.abrirUpload()">📤 Fazer Upload</button>
                 </div>
             `;
@@ -276,11 +279,21 @@ const App = {
             const midias = item.midia_urls || [];
             const thumb = item.thumbnail_url || midias[0]?.url || '';
             const isVideo = midias[0]?.type === 'video';
+            const isMarkdown = item.tipo === 'markdown';
+
+            // Determinar o clique correto
+            const clickHandler = isMarkdown
+                ? `App.abrirMarkdown('${item.id}')`
+                : `App.verMidia('${item.id}')`;
 
             return `
-                <div class="biblioteca-item" onclick="App.verMidia('${item.id}')">
+                <div class="biblioteca-item" onclick="${clickHandler}">
                     <div class="biblioteca-thumb">
-                        ${thumb ? (isVideo ? `<video src="${thumb}"></video>` : `<img src="${thumb}" alt="${item.titulo}">`) : '<span style="font-size:48px">📄</span>'}
+                        ${isMarkdown
+                            ? '<span style="font-size:48px">📄</span>'
+                            : (thumb
+                                ? (isVideo ? `<video src="${thumb}"></video>` : `<img src="${thumb}" alt="${item.titulo}">`)
+                                : '<span style="font-size:48px">📁</span>')}
                         <span class="biblioteca-tipo">${item.tipo?.toUpperCase() || 'OUTRO'}</span>
                     </div>
                     <div class="biblioteca-info">
@@ -847,10 +860,11 @@ const App = {
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Tipo</label>
-                            <select class="form-select" name="tipo">
+                            <select class="form-select" name="tipo" id="uploadTipo">
                                 <option value="carrossel">Carrossel</option>
                                 <option value="reels">Reels</option>
                                 <option value="static">Imagem</option>
+                                <option value="markdown">📄 Markdown</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -864,17 +878,18 @@ const App = {
                             <div class="upload-icon">📤</div>
                             <div class="upload-title">Arraste arquivos aqui</div>
                             <div class="upload-subtitle">ou clique para selecionar</div>
-                            <input type="file" id="uploadInput" multiple accept="image/*,video/*" hidden>
+                            <input type="file" id="uploadInput" multiple accept="image/*,video/*,.md,text/markdown" hidden>
                             <div class="upload-formats">
                                 <span class="upload-format">JPG</span>
                                 <span class="upload-format">PNG</span>
                                 <span class="upload-format">MP4</span>
+                                <span class="upload-format">MD</span>
                             </div>
                         </div>
                         <div class="upload-previews" id="uploadPreviews"></div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Legenda</label>
+                        <label class="form-label">Legenda / Descricao</label>
                         <textarea class="form-textarea" name="legenda" rows="3"></textarea>
                     </div>
                 </form>
@@ -900,12 +915,30 @@ const App = {
         this.uploadFiles = [...this.uploadFiles, ...Array.from(files)];
         const container = document.getElementById('uploadPreviews');
 
+        // Auto-detectar tipo baseado nos arquivos
+        const hasMarkdown = this.uploadFiles.some(f => f.name.endsWith('.md'));
+        if (hasMarkdown) {
+            document.getElementById('uploadTipo').value = 'markdown';
+        }
+
         container.innerHTML = this.uploadFiles.map((file, idx) => {
-            const url = URL.createObjectURL(file);
             const isVideo = file.type.startsWith('video');
+            const isMarkdown = file.name.endsWith('.md');
+            const isImage = file.type.startsWith('image');
+
+            if (isMarkdown) {
+                return `
+                    <div class="upload-preview" style="display:flex; align-items:center; justify-content:center; background:var(--bg-hover);">
+                        <span style="font-size:32px;">📄</span>
+                        <button class="upload-preview-remove" onclick="App.removeFile(${idx})">x</button>
+                    </div>
+                `;
+            }
+
+            const url = URL.createObjectURL(file);
             return `
                 <div class="upload-preview">
-                    ${isVideo ? `<video src="${url}"></video>` : `<img src="${url}">`}
+                    ${isVideo ? `<video src="${url}"></video>` : (isImage ? `<img src="${url}">` : '<span style="font-size:32px;">📁</span>')}
                     <button class="upload-preview-remove" onclick="App.removeFile(${idx})">x</button>
                 </div>
             `;
@@ -921,6 +954,7 @@ const App = {
         const form = document.getElementById('formUpload');
         const formData = new FormData(form);
         const titulo = formData.get('titulo');
+        const tipo = formData.get('tipo');
 
         if (!titulo) {
             Toast.error('Preencha o titulo');
@@ -933,31 +967,45 @@ const App = {
 
         try {
             const midias = [];
+            let markdownContent = null;
 
             for (const file of this.uploadFiles) {
-                const ext = file.name.split('.').pop();
-                const path = `${state.empresa.slug}/biblioteca/${Date.now()}_${Math.random().toString(36).substr(2,9)}.${ext}`;
+                const ext = file.name.split('.').pop().toLowerCase();
 
-                const { error: uploadError } = await storage.storage.from('media').upload(path, file);
-                if (uploadError) throw uploadError;
+                // Se for markdown, ler o conteudo do arquivo
+                if (ext === 'md') {
+                    markdownContent = await this.readFileAsText(file);
+                    midias.push({
+                        type: 'markdown',
+                        name: file.name,
+                        content: markdownContent
+                    });
+                } else {
+                    // Upload para o storage
+                    const path = `${state.empresa.slug}/biblioteca/${Date.now()}_${Math.random().toString(36).substr(2,9)}.${ext}`;
 
-                const { data: urlData } = storage.storage.from('media').getPublicUrl(path);
-                midias.push({
-                    url: urlData.publicUrl,
-                    path,
-                    type: file.type.startsWith('video') ? 'video' : 'image',
-                    name: file.name
-                });
+                    const { error: uploadError } = await storage.storage.from('media').upload(path, file);
+                    if (uploadError) throw uploadError;
+
+                    const { data: urlData } = storage.storage.from('media').getPublicUrl(path);
+                    midias.push({
+                        url: urlData.publicUrl,
+                        path,
+                        type: file.type.startsWith('video') ? 'video' : 'image',
+                        name: file.name
+                    });
+                }
             }
 
             const dados = {
                 empresa_id: state.empresa.id,
                 titulo,
-                tipo: formData.get('tipo'),
+                tipo,
                 data_publicacao: formData.get('data_publicacao') || null,
                 legenda: formData.get('legenda') || null,
                 midia_urls: midias,
-                thumbnail_url: midias[0]?.url || null
+                thumbnail_url: midias[0]?.url || null,
+                markdown_content: markdownContent
             };
 
             await db.from('conteudos_prontos').insert([dados]);
@@ -973,6 +1021,16 @@ const App = {
 
         btn.textContent = 'Fazer Upload';
         btn.disabled = false;
+    },
+
+    // Ler arquivo como texto
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(e);
+            reader.readAsText(file);
+        });
     },
 
     verMidia(id) {
@@ -1039,6 +1097,70 @@ const App = {
     },
 
     // ====================
+    // MARKDOWN VIEWER
+    // ====================
+    abrirMarkdown(id) {
+        const item = state.biblioteca.find(i => i.id === id);
+        if (!item) return;
+
+        state.currentMarkdown = item;
+
+        // Esconder todas as pages e mostrar a de markdown
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-markdown').classList.add('active');
+
+        // Atualizar nav (desmarcar todos)
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+
+        // Preencher conteudo
+        document.getElementById('markdownTitulo').textContent = item.titulo;
+        document.getElementById('markdownMeta').textContent = `Criado em ${this.formatarData(item.created_at)}`;
+
+        // Renderizar markdown
+        const content = item.markdown_content || item.legenda || 'Sem conteudo';
+        document.getElementById('markdownContent').innerHTML = marked.parse(content);
+    },
+
+    voltarDoBiblioteca() {
+        state.currentMarkdown = null;
+
+        // Voltar para biblioteca
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('page-biblioteca').classList.add('active');
+
+        // Atualizar nav
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelector('.nav-link[data-tab="biblioteca"]').classList.add('active');
+
+        this.renderBiblioteca();
+    },
+
+    copiarMarkdown() {
+        if (!state.currentMarkdown) return;
+
+        const content = state.currentMarkdown.markdown_content || state.currentMarkdown.legenda || '';
+        navigator.clipboard.writeText(content).then(() => {
+            Toast.success('Markdown copiado!');
+        }).catch(() => {
+            Toast.error('Erro ao copiar');
+        });
+    },
+
+    async excluirMarkdownAtual() {
+        if (!state.currentMarkdown) return;
+        if (!confirm('Excluir este documento?')) return;
+
+        try {
+            await db.from('conteudos_prontos').delete().eq('id', state.currentMarkdown.id);
+            Toast.success('Documento excluido!');
+            this.voltarDoBiblioteca();
+            await this.carregarTudo();
+        } catch (e) {
+            Toast.error('Erro ao excluir');
+        }
+    },
+
+    // ====================
     // UTILS
     // ====================
     formatarData(data) {
@@ -1046,6 +1168,123 @@ const App = {
         return new Date(data + 'T00:00:00').toLocaleDateString('pt-BR');
     }
 };
+
+// ====================
+// CLAUDE DESKTOP API
+// ====================
+const ClaudeAPI = {
+    // Adicionar conteudo diretamente via API
+    async adicionarConteudo(dados) {
+        if (!state.empresa) {
+            throw new Error('Sistema nao inicializado');
+        }
+
+        const { titulo, tipo, conteudo, legenda } = dados;
+
+        if (!titulo) {
+            throw new Error('Titulo e obrigatorio');
+        }
+
+        const novoConteudo = {
+            empresa_id: state.empresa.id,
+            titulo,
+            tipo: tipo || 'markdown',
+            legenda: legenda || null,
+            markdown_content: conteudo || null,
+            midia_urls: conteudo ? [{ type: 'markdown', content: conteudo }] : [],
+            data_publicacao: null,
+            thumbnail_url: null
+        };
+
+        const { data, error } = await db.from('conteudos_prontos').insert([novoConteudo]).select();
+        if (error) throw error;
+
+        // Recarregar dados
+        await App.carregarTudo();
+        App.renderBiblioteca();
+
+        return { success: true, id: data[0].id, message: 'Conteudo adicionado com sucesso!' };
+    },
+
+    // Listar conteudos
+    async listarConteudos(filtro = null) {
+        let items = state.biblioteca;
+        if (filtro) {
+            items = items.filter(i => i.tipo === filtro);
+        }
+        return items.map(i => ({
+            id: i.id,
+            titulo: i.titulo,
+            tipo: i.tipo,
+            created_at: i.created_at,
+            has_markdown: !!i.markdown_content
+        }));
+    },
+
+    // Obter conteudo especifico
+    async obterConteudo(id) {
+        const item = state.biblioteca.find(i => i.id === id);
+        if (!item) throw new Error('Conteudo nao encontrado');
+        return item;
+    },
+
+    // Adicionar demanda
+    async adicionarDemanda(dados) {
+        if (!state.empresa) {
+            throw new Error('Sistema nao inicializado');
+        }
+
+        const { titulo, descricao, prioridade, solicitante } = dados;
+
+        if (!titulo) {
+            throw new Error('Titulo e obrigatorio');
+        }
+
+        const novaDemanda = {
+            empresa_id: state.empresa.id,
+            titulo,
+            descricao: descricao || null,
+            prioridade: prioridade || 'normal',
+            solicitante: solicitante || 'Claude Desktop',
+            status: 'backlog'
+        };
+
+        const { data, error } = await db.from('demandas').insert([novaDemanda]).select();
+        if (error) throw error;
+
+        await App.carregarTudo();
+        return { success: true, id: data[0].id, message: 'Demanda adicionada!' };
+    },
+
+    // Adicionar nota/anotacao
+    async adicionarNota(dados) {
+        if (!state.empresa) {
+            throw new Error('Sistema nao inicializado');
+        }
+
+        const { titulo, texto } = dados;
+
+        if (!titulo) {
+            throw new Error('Titulo e obrigatorio');
+        }
+
+        const novaNota = {
+            empresa_id: state.empresa.id,
+            titulo,
+            texto: texto || null
+        };
+
+        const { data, error } = await db.from('anotacoes').insert([novaNota]).select();
+        if (error) throw error;
+
+        await App.carregarTudo();
+        return { success: true, id: data[0].id, message: 'Nota adicionada!' };
+    }
+};
+
+// Expor API globalmente para acesso externo
+window.ClaudeAPI = ClaudeAPI;
+window.ContentStudioAPI = ClaudeAPI; // Alias
 
 // ====================
 // MODAL
@@ -1109,4 +1348,5 @@ const Toast = {
 // ====================
 document.addEventListener('DOMContentLoaded', () => App.init());
 
-console.log('Content Studio v4.0 carregado!');
+console.log('Content Studio v4.1 carregado!');
+console.log('API disponivel: window.ClaudeAPI ou window.ContentStudioAPI');

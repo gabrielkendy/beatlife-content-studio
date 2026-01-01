@@ -9,7 +9,8 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>★</text></svg>">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link rel="stylesheet" href="styles.css?v=4.0">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="styles.css?v=4.1">
 </head>
 <body>
     <div class="app">
@@ -142,6 +143,7 @@
                     <button class="filtro" data-filtro="carrossel">Carrossel</button>
                     <button class="filtro" data-filtro="reels">Reels</button>
                     <button class="filtro" data-filtro="static">Imagem</button>
+                    <button class="filtro" data-filtro="markdown">📄 Markdown</button>
                 </div>
 
                 <div class="biblioteca-grid" id="bibliotecaGrid">
@@ -212,6 +214,26 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Markdown Viewer -->
+            <section class="page" id="page-markdown">
+                <header class="page-header">
+                    <div>
+                        <button class="btn btn-ghost" onclick="App.voltarDoBiblioteca()">← Voltar</button>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="App.copiarMarkdown()">📋 Copiar</button>
+                        <button class="btn btn-danger" onclick="App.excluirMarkdownAtual()">🗑️ Excluir</button>
+                    </div>
+                </header>
+                <div class="markdown-viewer">
+                    <div class="markdown-header">
+                        <h1 id="markdownTitulo">Documento</h1>
+                        <p class="markdown-meta" id="markdownMeta"></p>
+                    </div>
+                    <div class="markdown-content" id="markdownContent"></div>
+                </div>
+            </section>
         </main>
     </div>
 
@@ -224,7 +246,7 @@
     <div class="toast-container" id="toasts"></div>
 
     <!-- Scripts -->
-    <script src="config.js?v=4.0"></script>
-    <script src="app.js?v=4.0"></script>
+    <script src="config.js?v=4.1"></script>
+    <script src="app.js?v=4.1"></script>
 </body>
 </html>
