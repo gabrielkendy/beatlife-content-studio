@@ -1778,3 +1778,228 @@ body {
 .modal-visualizacao ::-webkit-scrollbar-thumb:hover {
     background: rgba(203,160,82,0.5);
 }
+
+/* =====================================================
+   EXPORT / IMPORT MODAL
+   ===================================================== */
+.modal-export-import {
+    max-width: 500px;
+}
+
+.export-import-section {
+    padding: 20px 0;
+}
+
+.export-import-section h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--dark);
+}
+
+.export-import-section p {
+    color: var(--cinza-500);
+    margin-bottom: 16px;
+}
+
+.export-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.divider {
+    border: none;
+    border-top: 1px solid var(--cinza-200);
+    margin: 10px 0;
+}
+
+.import-area {
+    padding: 20px;
+    border: 2px dashed var(--cinza-300);
+    border-radius: var(--border-radius);
+    text-align: center;
+    background: var(--cinza-50);
+}
+
+/* =====================================================
+   GALERIA VIEWER
+   ===================================================== */
+.galeria-viewer {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.galeria-main {
+    width: 100%;
+    aspect-ratio: 1;
+    max-height: 500px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background: var(--dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.galeria-media-main {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.galeria-thumbs {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 0;
+}
+
+.galeria-thumb {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: var(--transition);
+    position: relative;
+    flex-shrink: 0;
+}
+
+.galeria-thumb.active {
+    border-color: var(--gold);
+}
+
+.galeria-thumb:hover {
+    border-color: var(--gold-light);
+}
+
+.galeria-thumb img,
+.galeria-thumb video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumb-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 20px;
+    text-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.galeria-legenda {
+    background: var(--cinza-50);
+    padding: 20px;
+    border-radius: var(--border-radius);
+}
+
+.galeria-legenda h4 {
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.galeria-legenda p {
+    color: var(--cinza-600);
+    white-space: pre-wrap;
+    margin-bottom: 15px;
+}
+
+.btn-copy {
+    background: var(--gradient-gold);
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    color: var(--dark);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-copy:hover {
+    transform: scale(1.05);
+}
+
+/* =====================================================
+   HEADER ACTIONS
+   ===================================================== */
+.header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: var(--cinza-100);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 18px;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon:hover {
+    background: var(--gold-light);
+    transform: scale(1.05);
+}
+
+/* =====================================================
+   EMPTY STATES
+   ===================================================== */
+.empty-biblioteca {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-biblioteca h3 {
+    font-size: 1.5rem;
+    margin-bottom: 10px;
+    color: var(--dark);
+}
+
+.empty-biblioteca p {
+    color: var(--cinza-500);
+    margin-bottom: 20px;
+}
+
+/* =====================================================
+   BTN DANGER
+   ===================================================== */
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+/* =====================================================
+   TOAST IMPROVEMENTS
+   ===================================================== */
+.toast.info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}

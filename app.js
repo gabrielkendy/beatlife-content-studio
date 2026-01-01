@@ -11,6 +11,12 @@ const supabase = window.supabase.createClient(
     SUPABASE_CONFIG.anonKey
 );
 
+// Cliente separado para Storage (com permissões de upload)
+const supabaseStorage = window.supabase.createClient(
+    SUPABASE_CONFIG.url,
+    SUPABASE_CONFIG.storageKey
+);
+
 // =====================================================
 // LOADING STATES E UX
 // =====================================================
@@ -2636,7 +2642,7 @@ async function uploadArquivo(file, pasta = 'uploads') {
     const nomeArquivo = `${state.empresa.slug}/${pasta}/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
 
     try {
-        const { data, error } = await supabase.storage
+        const { data, error } = await supabaseStorage.storage
             .from(STORAGE_BUCKET)
             .upload(nomeArquivo, file, {
                 cacheControl: '3600',
@@ -2646,7 +2652,7 @@ async function uploadArquivo(file, pasta = 'uploads') {
         if (error) throw error;
 
         // Obter URL pública
-        const { data: publicUrl } = supabase.storage
+        const { data: publicUrl } = supabaseStorage.storage
             .from(STORAGE_BUCKET)
             .getPublicUrl(nomeArquivo);
 
@@ -2684,7 +2690,7 @@ async function uploadMultiplosArquivos(files, pasta = 'uploads', onProgress = nu
 
 async function deletarArquivo(path) {
     try {
-        const { error } = await supabase.storage
+        const { error } = await supabaseStorage.storage
             .from(STORAGE_BUCKET)
             .remove([path]);
 
@@ -3280,3 +3286,259 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 console.log('📤 Sistema de Upload carregado!');
+
+// =====================================================
+// EXPORT / IMPORT DE DADOS
+// =====================================================
+
+async function exportarDados(formato = 'json') {
+    if (!state.empresa) {
+        showToast('Empresa não carregada', 'error');
+        return;
+    }
+
+    showToast('Preparando exportação...', 'info');
+
+    try {
+        // Coletar todos os dados
+        const dados = {
+            exportDate: new Date().toISOString(),
+            empresa: state.empresa,
+            planejamento: state.planejamento,
+            conteudosProntos: [],
+            demandas: state.demandas,
+            anotacoes: state.anotacoes,
+            briefings: state.briefings
+        };
+
+        // Carregar conteúdos prontos
+        const { data: conteudos } = await supabase
+            .from('conteudos_prontos')
+            .select('*')
+            .eq('empresa_id', state.empresa.id);
+        dados.conteudosProntos = conteudos || [];
+
+        if (formato === 'json') {
+            downloadJSON(dados, `beatlife-backup-${formatarDataArquivo()}.json`);
+        } else if (formato === 'csv') {
+            downloadCSV(dados);
+        }
+
+        showToast('Dados exportados com sucesso!', 'success');
+    } catch (error) {
+        console.error('Erro na exportação:', error);
+        showToast('Erro ao exportar dados', 'error');
+    }
+}
+
+function downloadJSON(dados, filename) {
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function downloadCSV(dados) {
+    // Exportar planejamento como CSV
+    const headers = ['Título', 'Descrição', 'Tipo', 'Status', 'Mês', 'Ano', 'Data Publicação'];
+    const rows = dados.planejamento.map(p => [
+        p.titulo,
+        p.descricao || '',
+        p.tipo,
+        p.status,
+        p.mes,
+        p.ano,
+        p.data_publicacao || ''
+    ]);
+
+    const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `beatlife-planejamento-${formatarDataArquivo()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function formatarDataArquivo() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function importarDados(arquivo) {
+    if (!state.empresa) {
+        showToast('Empresa não carregada', 'error');
+        return;
+    }
+
+    showToast('Importando dados...', 'info');
+
+    try {
+        const texto = await arquivo.text();
+        const dados = JSON.parse(texto);
+
+        // Validar estrutura
+        if (!dados.planejamento && !dados.demandas && !dados.anotacoes) {
+            throw new Error('Formato de arquivo inválido');
+        }
+
+        let importados = 0;
+
+        // Importar planejamento
+        if (dados.planejamento && dados.planejamento.length > 0) {
+            for (const item of dados.planejamento) {
+                const novoItem = {
+                    empresa_id: state.empresa.id,
+                    titulo: item.titulo,
+                    descricao: item.descricao,
+                    tipo: item.tipo || 'carrossel',
+                    status: item.status || 'planejado',
+                    mes: item.mes,
+                    ano: item.ano || state.anoAtual,
+                    data_publicacao: item.data_publicacao,
+                    ordem: item.ordem || 0,
+                    slides: item.slides || [],
+                    prompts_imagem: item.prompts_imagem || [],
+                    prompts_video: item.prompts_video || [],
+                    legenda: item.legenda
+                };
+
+                const { error } = await supabase
+                    .from('planejamento_conteudos')
+                    .insert([novoItem]);
+
+                if (!error) importados++;
+            }
+        }
+
+        // Importar demandas
+        if (dados.demandas && dados.demandas.length > 0) {
+            for (const item of dados.demandas) {
+                const novoItem = {
+                    empresa_id: state.empresa.id,
+                    titulo: item.titulo,
+                    descricao: item.descricao,
+                    status: item.status || 'backlog',
+                    prioridade: item.prioridade || 'normal',
+                    solicitante: item.solicitante,
+                    data_limite: item.data_limite,
+                    observacoes: item.observacoes
+                };
+
+                const { error } = await supabase
+                    .from('demandas')
+                    .insert([novoItem]);
+
+                if (!error) importados++;
+            }
+        }
+
+        // Importar anotações
+        if (dados.anotacoes && dados.anotacoes.length > 0) {
+            for (const item of dados.anotacoes) {
+                const novoItem = {
+                    empresa_id: state.empresa.id,
+                    titulo: item.titulo,
+                    texto: item.texto,
+                    categoria: item.categoria || 'geral'
+                };
+
+                const { error } = await supabase
+                    .from('anotacoes')
+                    .insert([novoItem]);
+
+                if (!error) importados++;
+            }
+        }
+
+        // Recarregar dados
+        await carregarDados();
+
+        showToast(`${importados} itens importados com sucesso!`, 'success');
+    } catch (error) {
+        console.error('Erro na importação:', error);
+        showToast('Erro ao importar: ' + error.message, 'error');
+    }
+}
+
+function abrirModalExportImport() {
+    const modal = document.getElementById('modalOverlay');
+    const modalContent = document.getElementById('modalContent');
+
+    modalContent.className = 'modal modal-export-import';
+    modalContent.innerHTML = `
+        <div class="modal-header">
+            <h2>📦 Exportar / Importar Dados</h2>
+            <button class="modal-close" onclick="fecharModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="export-import-section">
+                <h3>📤 Exportar</h3>
+                <p>Faça backup de todos os seus dados</p>
+                <div class="export-buttons">
+                    <button class="btn-primary" onclick="exportarDados('json')">
+                        📄 Exportar JSON (completo)
+                    </button>
+                    <button class="btn-secondary" onclick="exportarDados('csv')">
+                        📊 Exportar CSV (planejamento)
+                    </button>
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="export-import-section">
+                <h3>📥 Importar</h3>
+                <p>Restaure dados de um backup anterior</p>
+                <div class="import-area">
+                    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImportFile(event)">
+                    <button class="btn-primary" onclick="document.getElementById('importFile').click()">
+                        📁 Selecionar arquivo JSON
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal()">Fechar</button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+function handleImportFile(event) {
+    const file = event.target.files[0];
+    if (file) {
+        if (confirm('Isso irá adicionar novos dados. Deseja continuar?')) {
+            importarDados(file);
+            fecharModal();
+        }
+    }
+}
+
+// =====================================================
+// ADICIONAR BOTÕES NA INTERFACE
+// =====================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Adicionar botão de export/import no header se existir
+    const header = document.querySelector('.header-actions');
+    if (header) {
+        const btnExport = document.createElement('button');
+        btnExport.className = 'btn-icon';
+        btnExport.innerHTML = '📦';
+        btnExport.title = 'Exportar/Importar';
+        btnExport.onclick = abrirModalExportImport;
+        header.insertBefore(btnExport, header.firstChild);
+    }
+});
+
+console.log('📦 Sistema de Export/Import carregado!');
