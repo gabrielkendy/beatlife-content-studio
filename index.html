@@ -2,323 +2,229 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
-    <meta name="description" content="Content Studio - Sistema de planejamento de conteúdo para Instagram. Gerencie posts, demandas e briefings do The Beat Life Club.">
-    <meta name="keywords" content="content studio, planejamento conteúdo, instagram, social media, the beat life">
-    <meta name="author" content="The Beat Life Club">
-    <meta name="theme-color" content="#0c1f32">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Content Studio">
-
-    <!-- Open Graph / Social -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Content Studio | The Beat Life Club">
-    <meta property="og:description" content="Sistema de planejamento de conteúdo para Instagram">
-    <meta property="og:locale" content="pt_BR">
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Studio | The Beat Life Club</title>
-
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☆</text></svg>">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>☆</text></svg>">
-
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Bodoni:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Supabase -->
+    <meta name="description" content="Sistema de planejamento de conteudo para Instagram">
+    <meta name="theme-color" content="#0a0a0a">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>★</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <!-- Styles -->
-    <link rel="stylesheet" href="styles.css?v=3.4">
+    <link rel="stylesheet" href="styles.css?v=4.0">
 </head>
 <body>
-    <!-- SIDEBAR -->
-    <aside class="sidebar" role="navigation" aria-label="Menu principal">
-        <div class="sidebar-header">
+    <div class="app">
+        <!-- Sidebar -->
+        <aside class="sidebar">
             <div class="logo">
-                <span class="logo-icon" aria-hidden="true">☆</span>
-                <div class="logo-text">
-                    <span class="logo-title">THE BEAT</span>
-                    <span class="logo-subtitle">Content Studio</span>
+                <span class="logo-star">★</span>
+                <div>
+                    <div class="logo-title">THE BEAT</div>
+                    <div class="logo-sub">Content Studio</div>
                 </div>
             </div>
-        </div>
 
-        <nav class="sidebar-nav" aria-label="Navegação principal">
-            <a href="#" class="nav-item active" data-tab="dashboard" aria-current="page" role="button">
-                <span class="nav-icon" aria-hidden="true">📊</span>
-                <span class="nav-label">Dashboard</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="planejamento" role="button">
-                <span class="nav-icon" aria-hidden="true">📅</span>
-                <span class="nav-label">Planejamento</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="biblioteca" role="button">
-                <span class="nav-icon" aria-hidden="true">📚</span>
-                <span class="nav-label">Biblioteca</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="demandas" role="button">
-                <span class="nav-icon" aria-hidden="true">📋</span>
-                <span class="nav-label">Demandas</span>
-            </a>
-            <a href="#" class="nav-item" data-tab="anotacoes" role="button">
-                <span class="nav-icon" aria-hidden="true">📝</span>
-                <span class="nav-label">Anotações</span>
-            </a>
-        </nav>
-        
-        <div class="sidebar-footer">
-            <div class="empresa-info">
-                <span class="empresa-nome" id="empresaNome">Carregando...</span>
-                <span class="empresa-status">Conectado</span>
+            <nav class="nav">
+                <a href="#" class="nav-link active" data-tab="dashboard">
+                    <span>📊</span> Dashboard
+                </a>
+                <a href="#" class="nav-link" data-tab="planejamento">
+                    <span>📅</span> Planejamento
+                </a>
+                <a href="#" class="nav-link" data-tab="biblioteca">
+                    <span>📁</span> Biblioteca
+                </a>
+                <a href="#" class="nav-link" data-tab="demandas">
+                    <span>📋</span> Demandas
+                </a>
+                <a href="#" class="nav-link" data-tab="notas">
+                    <span>📝</span> Notas
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="empresa-badge" id="empresaBadge">Carregando...</div>
             </div>
-        </div>
-    </aside>
+        </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content" role="main" aria-label="Conteúdo principal">
-        
-        <!-- ================================================== -->
-        <!-- DASHBOARD TAB -->
-        <!-- ================================================== -->
-        <section class="tab-content active" id="tab-dashboard">
-            <header class="page-header">
-                <div class="header-left">
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Dashboard -->
+            <section class="page active" id="page-dashboard">
+                <header class="page-header">
                     <div>
                         <h1>Dashboard</h1>
-                        <p class="page-desc">Visão geral do seu conteúdo</p>
+                        <p class="subtitle" id="dataHoje"></p>
                     </div>
-                </div>
-                <div class="header-right header-actions">
-                    <button class="btn-icon" onclick="abrirModalExportImport()" title="Backup">📦</button>
-                    <span id="dataAtual" style="color: var(--cinza-500); font-size: 14px;"></span>
-                </div>
-            </header>
-            
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-icon">📅</div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="statPlanejados">0</span>
-                        <span class="stat-label">Planejados</span>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="App.exportar()" title="Exportar dados">📦</button>
                     </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">🎬</div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="statProducao">0</span>
-                        <span class="stat-label">Em Produção</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">✅</div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="statProntos">0</span>
-                        <span class="stat-label">Prontos</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-icon">📤</div>
-                    <div class="stat-info">
-                        <span class="stat-value" id="statPublicados">0</span>
-                        <span class="stat-label">Publicados</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="dashboard-grid">
-                <div class="dashboard-card">
-                    <h3>📋 Demandas Pendentes</h3>
-                    <div id="demandasPendentes" class="list-container">
-                        <p class="empty-state">Nenhuma demanda pendente</p>
-                    </div>
-                </div>
-                <div class="dashboard-card">
-                    <h3>📅 Próximos Conteúdos</h3>
-                    <div id="proximosConteudos" class="list-container">
-                        <p class="empty-state">Nenhum conteúdo agendado</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+                </header>
 
-        <!-- ================================================== -->
-        <!-- PLANEJAMENTO TAB -->
-        <!-- ================================================== -->
-        <section class="tab-content" id="tab-planejamento">
-            <header class="page-header">
-                <div class="header-left">
-                    <div>
-                        <h1>Planejamento Anual</h1>
-                        <p class="page-desc">Calendário de conteúdos por mês</p>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">📅</div>
+                        <div class="stat-value" id="statPlanejados">0</div>
+                        <div class="stat-label">Planejados</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">🎬</div>
+                        <div class="stat-value" id="statProducao">0</div>
+                        <div class="stat-label">Em Producao</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-value" id="statProntos">0</div>
+                        <div class="stat-label">Prontos</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">📤</div>
+                        <div class="stat-value" id="statPublicados">0</div>
+                        <div class="stat-label">Publicados</div>
                     </div>
                 </div>
-                <div class="header-right">
-                    <div class="year-navigator">
-                        <button class="btn-icon" id="btnPrevYear">←</button>
-                        <span class="year-display" id="anoAtual">2025</span>
-                        <button class="btn-icon" id="btnNextYear">→</button>
-                    </div>
-                </div>
-            </header>
-            
-            <!-- Grid de Meses -->
-            <div class="meses-grid" id="mesesGrid">
-                <!-- Meses serão renderizados via JS -->
-            </div>
-            
-            <!-- Detalhe do Mês Selecionado -->
-            <div class="mes-detalhe hidden" id="mesDetalhe">
-                <div class="mes-detalhe-header">
-                    <div class="mes-detalhe-left">
-                        <button class="btn-back" id="btnVoltarMeses">← Voltar</button>
-                        <div class="mes-detalhe-title">
-                            <h2 id="mesTitulo">Janeiro 2025</h2>
-                            <span class="mes-detalhe-subtitle" id="mesSubtitulo">16 conteúdos planejados</span>
+
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h3>Proximos Conteudos</h3>
+                        <div id="proximosConteudos" class="list-area">
+                            <p class="empty">Nenhum conteudo agendado</p>
                         </div>
                     </div>
-                    <div class="mes-detalhe-stats" id="mesDetalheStats">
-                        <!-- Stats dinâmicos -->
-                    </div>
-                </div>
-                <div class="mes-detalhe-body">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <div class="filtros-bar" id="filtrosBar">
-                            <!-- Filtros dinâmicos -->
+                    <div class="card">
+                        <h3>Demandas Urgentes</h3>
+                        <div id="demandasUrgentes" class="list-area">
+                            <p class="empty">Nenhuma demanda urgente</p>
                         </div>
-                        <button class="btn-primary" id="btnNovoConteudo">+ Novo Conteúdo</button>
-                    </div>
-                    <div class="conteudos-lista" id="conteudosLista">
-                        <!-- Conteúdos serão renderizados via JS -->
                     </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- ================================================== -->
-        <!-- BIBLIOTECA TAB -->
-        <!-- ================================================== -->
-        <section class="tab-content" id="tab-biblioteca">
-            <header class="page-header">
-                <div class="header-left">
+            <!-- Planejamento -->
+            <section class="page" id="page-planejamento">
+                <header class="page-header">
                     <div>
-                        <h1>Biblioteca de Conteúdos</h1>
-                        <p class="page-desc">Conteúdos prontos e publicados</p>
+                        <h1>Planejamento</h1>
+                        <p class="subtitle">Calendario de conteudos</p>
+                    </div>
+                    <div class="header-actions">
+                        <button class="btn btn-icon" onclick="App.anoAnterior()">←</button>
+                        <span class="ano-display" id="anoDisplay">2025</span>
+                        <button class="btn btn-icon" onclick="App.anoProximo()">→</button>
+                    </div>
+                </header>
+
+                <div id="planejamentoView">
+                    <div class="meses-grid" id="mesesGrid"></div>
+                </div>
+
+                <div id="mesDetalhe" class="hidden">
+                    <div class="mes-header">
+                        <button class="btn btn-ghost" onclick="App.voltarMeses()">← Voltar</button>
+                        <h2 id="mesTitulo">Janeiro</h2>
+                        <button class="btn btn-primary" onclick="App.novoConteudo()">+ Novo</button>
+                    </div>
+                    <div id="conteudosLista"></div>
+                </div>
+            </section>
+
+            <!-- Biblioteca -->
+            <section class="page" id="page-biblioteca">
+                <header class="page-header">
+                    <div>
+                        <h1>Biblioteca</h1>
+                        <p class="subtitle">Midias e conteudos prontos</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="App.abrirUpload()">📤 Upload</button>
+                </header>
+
+                <div class="filtros">
+                    <button class="filtro active" data-filtro="todos">Todos</button>
+                    <button class="filtro" data-filtro="carrossel">Carrossel</button>
+                    <button class="filtro" data-filtro="reels">Reels</button>
+                    <button class="filtro" data-filtro="static">Imagem</button>
+                </div>
+
+                <div class="biblioteca-grid" id="bibliotecaGrid">
+                    <div class="empty-state">
+                        <span class="empty-icon">📁</span>
+                        <h3>Biblioteca vazia</h3>
+                        <p>Faca upload de imagens e videos</p>
+                        <button class="btn btn-primary" onclick="App.abrirUpload()">📤 Fazer Upload</button>
                     </div>
                 </div>
-                <div class="header-right">
-                    <button class="btn-primary" onclick="abrirModalUpload()">📤 Upload de Mídia</button>
-                </div>
-            </header>
-            <div class="filtros-bar mb-20">
-                <button class="filtro-btn active" data-tipo-biblioteca="todos">Todos</button>
-                <button class="filtro-btn" data-tipo-biblioteca="carrossel">📸 Carrossel</button>
-                <button class="filtro-btn" data-tipo-biblioteca="reels">🎬 Reels</button>
-                <button class="filtro-btn" data-tipo-biblioteca="static">🖼️ Static</button>
-                <button class="filtro-btn" data-tipo-biblioteca="stories">📱 Stories</button>
-            </div>
-            <div class="biblioteca-grid" id="bibliotecaGrid">
-                <p class="empty-state">Nenhum conteúdo na biblioteca ainda</p>
-            </div>
-        </section>
+            </section>
 
-        <!-- ================================================== -->
-        <!-- DEMANDAS TAB -->
-        <!-- ================================================== -->
-        <section class="tab-content" id="tab-demandas">
-            <header class="page-header">
-                <div class="header-left">
+            <!-- Demandas -->
+            <section class="page" id="page-demandas">
+                <header class="page-header">
                     <div>
                         <h1>Demandas</h1>
-                        <p class="page-desc">Gerenciador de solicitações</p>
+                        <p class="subtitle">Kanban de tarefas</p>
                     </div>
-                </div>
-                <div class="header-right">
-                    <button class="btn-primary" id="btnNovaDemanda">+ Nova Demanda</button>
-                </div>
-            </header>
-            <div class="kanban-board" id="kanbanBoard">
-                <div class="kanban-column" data-status="backlog">
-                    <div class="column-header">
-                        <h3>📥 Backlog</h3>
-                        <span class="column-count">0</span>
-                    </div>
-                    <div class="column-cards"></div>
-                </div>
-                <div class="kanban-column" data-status="em_andamento">
-                    <div class="column-header">
-                        <h3>🔄 Em Andamento</h3>
-                        <span class="column-count">0</span>
-                    </div>
-                    <div class="column-cards"></div>
-                </div>
-                <div class="kanban-column" data-status="revisao">
-                    <div class="column-header">
-                        <h3>👀 Revisão</h3>
-                        <span class="column-count">0</span>
-                    </div>
-                    <div class="column-cards"></div>
-                </div>
-                <div class="kanban-column" data-status="concluido">
-                    <div class="column-header">
-                        <h3>✅ Concluído</h3>
-                        <span class="column-count">0</span>
-                    </div>
-                    <div class="column-cards"></div>
-                </div>
-            </div>
-        </section>
+                    <button class="btn btn-primary" onclick="App.novaDemanda()">+ Nova Demanda</button>
+                </header>
 
-        <!-- ================================================== -->
-        <!-- ANOTAÇÕES TAB -->
-        <!-- ================================================== -->
-        <section class="tab-content" id="tab-anotacoes">
-            <header class="page-header">
-                <div class="header-left">
+                <div class="kanban">
+                    <div class="kanban-col" data-status="backlog">
+                        <div class="kanban-header">📥 Backlog <span class="count">0</span></div>
+                        <div class="kanban-cards"></div>
+                    </div>
+                    <div class="kanban-col" data-status="andamento">
+                        <div class="kanban-header">🔄 Em Andamento <span class="count">0</span></div>
+                        <div class="kanban-cards"></div>
+                    </div>
+                    <div class="kanban-col" data-status="revisao">
+                        <div class="kanban-header">👀 Revisao <span class="count">0</span></div>
+                        <div class="kanban-cards"></div>
+                    </div>
+                    <div class="kanban-col" data-status="concluido">
+                        <div class="kanban-header">✅ Concluido <span class="count">0</span></div>
+                        <div class="kanban-cards"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Notas -->
+            <section class="page" id="page-notas">
+                <header class="page-header">
                     <div>
-                        <h1>Anotações & Briefings</h1>
-                        <p class="page-desc">Notas e resumos de reuniões</p>
+                        <h1>Notas & Briefings</h1>
+                        <p class="subtitle">Anotacoes e reunioes</p>
                     </div>
-                </div>
-                <div class="header-right">
-                    <button class="btn-secondary" id="btnNovaAnotacao">+ Anotação</button>
-                    <button class="btn-primary" id="btnNovoBriefing">+ Briefing</button>
-                </div>
-            </header>
-            <div class="anotacoes-container">
-                <div class="anotacoes-section">
-                    <h3>📝 Anotações</h3>
-                    <div id="anotacoesLista" class="cards-list">
-                        <p class="empty-state">Nenhuma anotação ainda</p>
+                    <div class="header-actions">
+                        <button class="btn btn-secondary" onclick="App.novaAnotacao()">+ Nota</button>
+                        <button class="btn btn-primary" onclick="App.novoBriefing()">+ Briefing</button>
                     </div>
-                </div>
-                <div class="anotacoes-section">
-                    <h3>📋 Briefings de Reunião</h3>
-                    <div id="briefingsLista" class="cards-list">
-                        <p class="empty-state">Nenhum briefing ainda</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
+                </header>
 
-    <!-- MODAL CONTAINER -->
-    <div class="modal-overlay hidden" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-        <div class="modal" id="modalContent" role="document">
-            <!-- Conteúdo do modal será injetado via JS -->
-        </div>
+                <div class="notas-grid">
+                    <div class="card">
+                        <h3>📝 Anotacoes</h3>
+                        <div id="anotacoesLista" class="list-area">
+                            <p class="empty">Nenhuma anotacao</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>📋 Briefings</h3>
+                        <div id="briefingsLista" class="list-area">
+                            <p class="empty">Nenhum briefing</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <!-- TOAST NOTIFICATIONS -->
-    <div class="toast-container" id="toastContainer"></div>
+    <!-- Modal -->
+    <div class="modal-overlay hidden" id="modal">
+        <div class="modal-box" id="modalBox"></div>
+    </div>
 
-    <script src="config.js?v=3.4"></script>
-    <script src="app.js?v=3.4"></script>
+    <!-- Toast -->
+    <div class="toast-container" id="toasts"></div>
+
+    <!-- Scripts -->
+    <script src="config.js?v=4.0"></script>
+    <script src="app.js?v=4.0"></script>
 </body>
 </html>
