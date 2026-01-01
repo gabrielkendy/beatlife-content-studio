@@ -1,8 +1,9 @@
 /* ========================================
-   BEATLIFE CONTENT STUDIO v4.1
+   BEATLIFE CONTENT STUDIO v5.0
    JavaScript Limpo e Funcional
    + Markdown Support
    + Claude Desktop API
+   + Assistente IA com Gemini
    ======================================== */
 
 // ====================
@@ -1287,6 +1288,345 @@ window.ClaudeAPI = ClaudeAPI;
 window.ContentStudioAPI = ClaudeAPI; // Alias
 
 // ====================
+// GEMINI CONFIG
+// ====================
+const GEMINI_CONFIG = {
+    API_KEY: 'AIzaSyDlZCMldW_3cINsM9x3r2RwquMHVjwXu30',
+    MODEL: 'gemini-1.5-flash',
+    BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
+};
+
+const SYSTEM_PROMPT = `Voce e um assistente especializado em criar briefings para producao de conteudo de Instagram para a academia The Beat Life Club.
+
+SOBRE A ACADEMIA:
+- Academia boutique focada em treino funcional e bem-estar
+- Publico: adultos 25-45 anos, profissionais que buscam qualidade de vida
+- Tom de voz: motivacional, acolhedor, profissional mas descontraido
+- Cores da marca: dourado, preto, branco
+
+SEU OBJETIVO:
+Coletar informacoes para criar um briefing completo atraves de conversa natural.
+
+INFORMACOES QUE VOCE PRECISA COLETAR:
+1. Tipo de conteudo (carrossel, reels, stories, imagem estatica)
+2. Tema/assunto principal
+3. Objetivo do conteudo (engajamento, conversao, informativo, motivacional)
+4. Tom desejado (inspirador, educativo, divertido, urgente)
+5. Call-to-action (se houver)
+6. Data desejada de publicacao (se houver)
+7. Referencias ou inspiracoes (se houver)
+8. Observacoes especiais
+
+COMO AGIR:
+- Faca perguntas naturais, uma ou duas por vez
+- Seja amigavel e objetivo
+- Sugira ideias quando apropriado
+- Quando tiver todas as informacoes necessarias, gere o briefing no formato JSON
+
+FORMATO DO BRIEFING (quando completo):
+Quando voce tiver coletado informacoes suficientes, inclua na sua resposta um bloco JSON assim:
+
+\`\`\`json
+{
+    "tipo": "carrossel|reels|stories|static",
+    "titulo": "Titulo resumido do conteudo",
+    "tema": "Tema principal",
+    "objetivo": "Objetivo do conteudo",
+    "tom": "Tom desejado",
+    "cta": "Call-to-action",
+    "data_publicacao": "YYYY-MM-DD ou null",
+    "referencias": "Referencias mencionadas ou null",
+    "observacoes": "Observacoes especiais ou null",
+    "descricao": "Descricao completa do briefing em 2-3 paragrafos"
+}
+\`\`\`
+
+IMPORTANTE:
+- So inclua o JSON quando tiver informacoes suficientes
+- Continue a conversa normalmente apos gerar o briefing
+- Pergunte se o usuario quer ajustar algo`;
+
+// ====================
+// ASSISTENTE IA
+// ====================
+const Assistente = {
+    messages: [],
+    currentBriefing: null,
+    isTyping: false,
+
+    // Templates rapidos
+    templates: {
+        carrossel: "Quero criar um carrossel educativo sobre treino funcional",
+        reels: "Preciso de um reels motivacional para as redes sociais",
+        stories: "Quero fazer stories mostrando o dia a dia da academia",
+        evento: "Preciso divulgar um evento especial que vamos ter"
+    },
+
+    // Usar template
+    usarTemplate(tipo) {
+        const texto = this.templates[tipo];
+        if (texto) {
+            document.getElementById('chatInput').value = texto;
+            this.enviar();
+        }
+    },
+
+    // Limpar chat
+    limparChat() {
+        this.messages = [];
+        this.currentBriefing = null;
+        const container = document.getElementById('chatMessages');
+        container.innerHTML = `
+            <div class="chat-welcome">
+                <div class="welcome-icon">🤖</div>
+                <h3>Ola! Sou seu assistente de briefings.</h3>
+                <p>Me conte sobre o conteudo que voce quer criar e vou te ajudar a estruturar um briefing completo!</p>
+            </div>
+        `;
+        document.getElementById('briefingPreview').classList.add('hidden');
+        document.getElementById('chatTemplates').classList.remove('hidden');
+        Toast.success('Chat limpo!');
+    },
+
+    // Handle keydown (Enter para enviar)
+    handleKeydown(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            this.enviar();
+        }
+    },
+
+    // Enviar mensagem
+    async enviar() {
+        const input = document.getElementById('chatInput');
+        const texto = input.value.trim();
+
+        if (!texto || this.isTyping) return;
+
+        // Esconder templates apos primeira mensagem
+        document.getElementById('chatTemplates').classList.add('hidden');
+
+        // Adicionar mensagem do usuario
+        this.adicionarMensagem('user', texto);
+        input.value = '';
+
+        // Mostrar typing indicator
+        this.setTyping(true);
+
+        try {
+            // Preparar historico para Gemini
+            const contents = this.messages.map(msg => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
+
+            // Chamar API Gemini
+            const response = await fetch(
+                `${GEMINI_CONFIG.BASE_URL}/models/${GEMINI_CONFIG.MODEL}:generateContent?key=${GEMINI_CONFIG.API_KEY}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: contents,
+                        systemInstruction: {
+                            parts: [{ text: SYSTEM_PROMPT }]
+                        },
+                        generationConfig: {
+                            temperature: 0.7,
+                            maxOutputTokens: 2048
+                        }
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('Erro na API do Gemini');
+            }
+
+            const data = await response.json();
+            const resposta = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Desculpe, nao consegui processar sua mensagem.';
+
+            // Adicionar resposta do assistente
+            this.adicionarMensagem('assistant', resposta);
+
+            // Verificar se tem briefing na resposta
+            this.detectarBriefing(resposta);
+
+        } catch (error) {
+            console.error('Erro Gemini:', error);
+            this.adicionarMensagem('assistant', 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.');
+            Toast.error('Erro ao conectar com IA');
+        }
+
+        this.setTyping(false);
+    },
+
+    // Adicionar mensagem ao chat
+    adicionarMensagem(role, content) {
+        this.messages.push({ role, content });
+
+        const container = document.getElementById('chatMessages');
+
+        // Remover welcome se existir
+        const welcome = container.querySelector('.chat-welcome');
+        if (welcome) welcome.remove();
+
+        const avatar = role === 'user' ? '👤' : '🤖';
+        const formattedContent = this.formatarMensagem(content);
+
+        const messageHtml = `
+            <div class="chat-message ${role}">
+                <div class="chat-avatar">${avatar}</div>
+                <div class="chat-bubble">${formattedContent}</div>
+            </div>
+        `;
+
+        container.insertAdjacentHTML('beforeend', messageHtml);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    // Formatar mensagem (markdown basico)
+    formatarMensagem(texto) {
+        // Remover bloco JSON da visualizacao
+        texto = texto.replace(/```json[\s\S]*?```/g, '');
+
+        // Converter markdown basico
+        texto = texto
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+
+        return `<p>${texto}</p>`;
+    },
+
+    // Detectar briefing no texto
+    detectarBriefing(texto) {
+        const jsonMatch = texto.match(/```json([\s\S]*?)```/);
+        if (jsonMatch) {
+            try {
+                const briefing = JSON.parse(jsonMatch[1].trim());
+                this.currentBriefing = briefing;
+                this.mostrarPreview(briefing);
+            } catch (e) {
+                console.error('Erro ao parsear briefing:', e);
+            }
+        }
+    },
+
+    // Mostrar preview do briefing
+    mostrarPreview(briefing) {
+        const container = document.getElementById('briefingPreviewContent');
+        const tipoLabels = {
+            carrossel: 'Carrossel',
+            reels: 'Reels',
+            stories: 'Stories',
+            static: 'Imagem Estatica'
+        };
+
+        container.innerHTML = `
+            <div class="briefing-field">
+                <div class="briefing-label">Tipo</div>
+                <div class="briefing-value">${tipoLabels[briefing.tipo] || briefing.tipo}</div>
+            </div>
+            <div class="briefing-field">
+                <div class="briefing-label">Titulo</div>
+                <div class="briefing-value">${briefing.titulo}</div>
+            </div>
+            <div class="briefing-field">
+                <div class="briefing-label">Tema</div>
+                <div class="briefing-value">${briefing.tema}</div>
+            </div>
+            <div class="briefing-field">
+                <div class="briefing-label">Objetivo</div>
+                <div class="briefing-value">${briefing.objetivo}</div>
+            </div>
+            <div class="briefing-field">
+                <div class="briefing-label">Tom</div>
+                <div class="briefing-value">${briefing.tom}</div>
+            </div>
+            ${briefing.cta ? `
+            <div class="briefing-field">
+                <div class="briefing-label">Call-to-Action</div>
+                <div class="briefing-value">${briefing.cta}</div>
+            </div>
+            ` : ''}
+            ${briefing.data_publicacao ? `
+            <div class="briefing-field">
+                <div class="briefing-label">Data de Publicacao</div>
+                <div class="briefing-value">${briefing.data_publicacao}</div>
+            </div>
+            ` : ''}
+        `;
+
+        document.getElementById('briefingPreview').classList.remove('hidden');
+    },
+
+    // Fechar preview
+    fecharPreview() {
+        document.getElementById('briefingPreview').classList.add('hidden');
+    },
+
+    // Criar demanda no Kanban
+    async criarDemanda() {
+        if (!this.currentBriefing || !state.empresa) {
+            Toast.error('Erro ao criar demanda');
+            return;
+        }
+
+        const briefing = this.currentBriefing;
+
+        try {
+            const demanda = {
+                empresa_id: state.empresa.id,
+                titulo: briefing.titulo,
+                descricao: briefing.descricao || `${briefing.tema}\n\nObjetivo: ${briefing.objetivo}\nTom: ${briefing.tom}${briefing.cta ? '\nCTA: ' + briefing.cta : ''}`,
+                prioridade: 'normal',
+                solicitante: 'Assistente IA',
+                status: 'backlog',
+                criado_via: 'ia',
+                briefing_ia: briefing
+            };
+
+            const { error } = await db.from('demandas').insert([demanda]);
+            if (error) throw error;
+
+            Toast.success('Demanda criada no Kanban!');
+            this.fecharPreview();
+            this.currentBriefing = null;
+
+            // Recarregar demandas
+            await App.carregarTudo();
+
+            // Adicionar mensagem de confirmacao
+            this.adicionarMensagem('assistant', 'Pronto! Criei a demanda no seu Kanban. Voce pode visualiza-la na aba Demandas. Quer criar outro briefing?');
+
+        } catch (e) {
+            console.error('Erro ao criar demanda:', e);
+            Toast.error('Erro ao criar demanda');
+        }
+    },
+
+    // Set typing indicator
+    setTyping(isTyping) {
+        this.isTyping = isTyping;
+        const typing = document.getElementById('chatTyping');
+        const btn = document.getElementById('chatSendBtn');
+
+        if (isTyping) {
+            typing.classList.remove('hidden');
+            btn.disabled = true;
+        } else {
+            typing.classList.add('hidden');
+            btn.disabled = false;
+        }
+    }
+};
+
+// Expor Assistente globalmente
+window.Assistente = Assistente;
+
+// ====================
 // MODAL
 // ====================
 const Modal = {
@@ -1348,5 +1688,6 @@ const Toast = {
 // ====================
 document.addEventListener('DOMContentLoaded', () => App.init());
 
-console.log('Content Studio v4.1 carregado!');
+console.log('Content Studio v5.0 carregado!');
 console.log('API disponivel: window.ClaudeAPI ou window.ContentStudioAPI');
+console.log('Assistente IA disponivel: window.Assistente');
