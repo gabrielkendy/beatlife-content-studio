@@ -2584,3 +2584,699 @@ renderizarAnotacoes = renderizarAnotacoesAvancado;
 renderizarBriefings = renderizarBriefingsAvancado;
 
 console.log('📦 Fase 6 & 7 carregadas!');
+
+// =====================================================
+// SISTEMA DE UPLOAD - IMAGENS, VÍDEOS E CARROSSÉIS
+// =====================================================
+
+// Configuração do Storage
+const STORAGE_BUCKET = 'media';
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const ALLOWED_TYPES = {
+    image: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+    video: ['video/mp4', 'video/webm', 'video/quicktime']
+};
+
+// Estado do upload
+let uploadState = {
+    files: [],
+    previews: [],
+    uploading: false,
+    currentConteudoId: null
+};
+
+// =====================================================
+// FUNÇÕES DE UPLOAD
+// =====================================================
+
+async function uploadArquivo(file, pasta = 'uploads') {
+    if (!state.empresa) {
+        showToast('Empresa não carregada', 'error');
+        return null;
+    }
+
+    // Validar tamanho
+    if (file.size > MAX_FILE_SIZE) {
+        showToast(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`, 'error');
+        return null;
+    }
+
+    // Validar tipo
+    const isImage = ALLOWED_TYPES.image.includes(file.type);
+    const isVideo = ALLOWED_TYPES.video.includes(file.type);
+
+    if (!isImage && !isVideo) {
+        showToast('Tipo de arquivo não suportado', 'error');
+        return null;
+    }
+
+    // Gerar nome único
+    const timestamp = Date.now();
+    const ext = file.name.split('.').pop();
+    const nomeArquivo = `${state.empresa.slug}/${pasta}/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${ext}`;
+
+    try {
+        const { data, error } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(nomeArquivo, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (error) throw error;
+
+        // Obter URL pública
+        const { data: publicUrl } = supabase.storage
+            .from(STORAGE_BUCKET)
+            .getPublicUrl(nomeArquivo);
+
+        console.log('✅ Upload concluído:', publicUrl.publicUrl);
+        return {
+            url: publicUrl.publicUrl,
+            path: nomeArquivo,
+            type: isVideo ? 'video' : 'image',
+            name: file.name,
+            size: file.size
+        };
+    } catch (error) {
+        console.error('Erro no upload:', error);
+        showToast('Erro ao fazer upload: ' + error.message, 'error');
+        return null;
+    }
+}
+
+async function uploadMultiplosArquivos(files, pasta = 'uploads', onProgress = null) {
+    const resultados = [];
+    const total = files.length;
+
+    for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (onProgress) onProgress(i + 1, total, file.name);
+
+        const resultado = await uploadArquivo(file, pasta);
+        if (resultado) {
+            resultados.push(resultado);
+        }
+    }
+
+    return resultados;
+}
+
+async function deletarArquivo(path) {
+    try {
+        const { error } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .remove([path]);
+
+        if (error) throw error;
+        console.log('🗑️ Arquivo deletado:', path);
+        return true;
+    } catch (error) {
+        console.error('Erro ao deletar:', error);
+        return false;
+    }
+}
+
+// =====================================================
+// UI DE UPLOAD - DRAG & DROP
+// =====================================================
+
+function criarAreaUpload(containerId, opcoes = {}) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const {
+        multiplo = true,
+        tiposAceitos = 'image/*,video/*',
+        maxArquivos = 10,
+        onUploadComplete = null
+    } = opcoes;
+
+    container.innerHTML = `
+        <div class="upload-area" id="uploadArea_${containerId}">
+            <div class="upload-icon">📁</div>
+            <p class="upload-text">Arraste arquivos aqui ou clique para selecionar</p>
+            <p class="upload-hint">Imagens (JPG, PNG, GIF, WebP) ou Vídeos (MP4, WebM)</p>
+            <input type="file" id="fileInput_${containerId}" ${multiplo ? 'multiple' : ''} accept="${tiposAceitos}" style="display: none;">
+            <button class="btn-upload" onclick="document.getElementById('fileInput_${containerId}').click()">
+                📤 Selecionar Arquivos
+            </button>
+        </div>
+        <div class="upload-preview" id="preview_${containerId}"></div>
+        <div class="upload-progress hidden" id="progress_${containerId}">
+            <div class="progress-bar"><div class="progress-fill"></div></div>
+            <p class="progress-text">Enviando...</p>
+        </div>
+    `;
+
+    const uploadArea = document.getElementById(`uploadArea_${containerId}`);
+    const fileInput = document.getElementById(`fileInput_${containerId}`);
+    const previewContainer = document.getElementById(`preview_${containerId}`);
+
+    // Drag & Drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files).slice(0, maxArquivos);
+        processarArquivos(files, containerId, onUploadComplete);
+    });
+
+    // Click para upload
+    fileInput.addEventListener('change', (e) => {
+        const files = Array.from(e.target.files).slice(0, maxArquivos);
+        processarArquivos(files, containerId, onUploadComplete);
+    });
+
+    uploadArea.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON') {
+            fileInput.click();
+        }
+    });
+}
+
+function processarArquivos(files, containerId, onComplete) {
+    const previewContainer = document.getElementById(`preview_${containerId}`);
+    uploadState.files = files;
+    uploadState.previews = [];
+
+    previewContainer.innerHTML = '';
+
+    files.forEach((file, index) => {
+        const isVideo = file.type.startsWith('video/');
+        const previewId = `preview_item_${index}`;
+
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.id = previewId;
+        div.innerHTML = `
+            <div class="preview-loading">
+                <div class="loading-spinner"></div>
+            </div>
+            <button class="preview-remove" onclick="removerPreview(${index}, '${containerId}')">×</button>
+            <div class="preview-info">
+                <span class="preview-name">${file.name.substring(0, 20)}${file.name.length > 20 ? '...' : ''}</span>
+                <span class="preview-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+            </div>
+        `;
+
+        previewContainer.appendChild(div);
+
+        // Gerar preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const previewDiv = document.getElementById(previewId);
+            if (isVideo) {
+                previewDiv.innerHTML = `
+                    <video src="${e.target.result}" class="preview-media"></video>
+                    <div class="preview-play-icon">▶</div>
+                    <button class="preview-remove" onclick="removerPreview(${index}, '${containerId}')">×</button>
+                    <div class="preview-info">
+                        <span class="preview-name">${file.name.substring(0, 20)}${file.name.length > 20 ? '...' : ''}</span>
+                        <span class="preview-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                `;
+            } else {
+                previewDiv.innerHTML = `
+                    <img src="${e.target.result}" class="preview-media" alt="${file.name}">
+                    <button class="preview-remove" onclick="removerPreview(${index}, '${containerId}')">×</button>
+                    <div class="preview-info">
+                        <span class="preview-name">${file.name.substring(0, 20)}${file.name.length > 20 ? '...' : ''}</span>
+                        <span class="preview-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                `;
+            }
+            uploadState.previews[index] = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // Adicionar botão de upload
+    if (files.length > 0) {
+        const btnUpload = document.createElement('button');
+        btnUpload.className = 'btn-primary btn-confirmar-upload';
+        btnUpload.innerHTML = `📤 Enviar ${files.length} arquivo${files.length > 1 ? 's' : ''}`;
+        btnUpload.onclick = () => iniciarUpload(containerId, onComplete);
+        previewContainer.appendChild(btnUpload);
+    }
+}
+
+function removerPreview(index, containerId) {
+    const newFiles = Array.from(uploadState.files);
+    newFiles.splice(index, 1);
+    uploadState.files = newFiles;
+
+    const previewContainer = document.getElementById(`preview_${containerId}`);
+    processarArquivos(newFiles, containerId, null);
+}
+
+async function iniciarUpload(containerId, onComplete) {
+    if (uploadState.uploading || uploadState.files.length === 0) return;
+
+    uploadState.uploading = true;
+    const progressContainer = document.getElementById(`progress_${containerId}`);
+    const progressBar = progressContainer.querySelector('.progress-fill');
+    const progressText = progressContainer.querySelector('.progress-text');
+
+    progressContainer.classList.remove('hidden');
+
+    const resultados = await uploadMultiplosArquivos(
+        uploadState.files,
+        'conteudos',
+        (atual, total, nome) => {
+            const percent = (atual / total) * 100;
+            progressBar.style.width = `${percent}%`;
+            progressText.textContent = `Enviando ${atual}/${total}: ${nome}`;
+        }
+    );
+
+    progressContainer.classList.add('hidden');
+    uploadState.uploading = false;
+    uploadState.files = [];
+
+    const previewContainer = document.getElementById(`preview_${containerId}`);
+    previewContainer.innerHTML = '';
+
+    if (resultados.length > 0) {
+        showToast(`${resultados.length} arquivo(s) enviado(s)!`, 'success');
+        if (onComplete) onComplete(resultados);
+    }
+}
+
+// =====================================================
+// BIBLIOTECA DE MÍDIA
+// =====================================================
+
+async function carregarBiblioteca() {
+    const container = document.getElementById('bibliotecaGrid');
+    if (!container) return;
+
+    showLoading(container, 'Carregando biblioteca...');
+
+    try {
+        // Carregar do banco de dados
+        const { data, error } = await supabase
+            .from('conteudos_prontos')
+            .select('*')
+            .eq('empresa_id', state.empresa.id)
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `
+                <div class="empty-biblioteca">
+                    <div class="empty-icon">📂</div>
+                    <h3>Biblioteca vazia</h3>
+                    <p>Faça upload de imagens e vídeos para começar</p>
+                    <button class="btn-primary" onclick="abrirModalUpload()">📤 Fazer Upload</button>
+                </div>
+            `;
+            return;
+        }
+
+        renderizarBiblioteca(data);
+    } catch (error) {
+        console.error('Erro ao carregar biblioteca:', error);
+        container.innerHTML = '<p class="error-state">Erro ao carregar biblioteca</p>';
+    }
+}
+
+function renderizarBiblioteca(itens) {
+    const container = document.getElementById('bibliotecaGrid');
+    if (!container) return;
+
+    container.innerHTML = itens.map(item => {
+        const midias = item.midia_urls || [];
+        const thumbnail = item.thumbnail_url || (midias[0]?.url) || '';
+        const isVideo = midias[0]?.type === 'video';
+
+        return `
+            <div class="biblioteca-item" data-id="${item.id}">
+                <div class="biblioteca-thumb">
+                    ${isVideo ? `
+                        <video src="${thumbnail}" class="biblioteca-media"></video>
+                        <div class="biblioteca-play">▶</div>
+                    ` : `
+                        <img src="${thumbnail}" class="biblioteca-media" alt="${item.titulo}">
+                    `}
+                    ${midias.length > 1 ? `<span class="biblioteca-count">${midias.length}</span>` : ''}
+                </div>
+                <div class="biblioteca-info">
+                    <h4 class="biblioteca-titulo">${item.titulo}</h4>
+                    <p class="biblioteca-meta">${item.tipo} • ${formatarData(item.created_at)}</p>
+                </div>
+                <div class="biblioteca-actions">
+                    <button onclick="visualizarMidia('${item.id}')" title="Ver">👁️</button>
+                    <button onclick="editarMidia('${item.id}')" title="Editar">✏️</button>
+                    <button onclick="excluirMidia('${item.id}')" title="Excluir">🗑️</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// =====================================================
+// MODAL DE UPLOAD
+// =====================================================
+
+function abrirModalUpload(conteudoId = null) {
+    uploadState.currentConteudoId = conteudoId;
+
+    const modal = document.getElementById('modalOverlay');
+    const modalContent = document.getElementById('modalContent');
+
+    modalContent.className = 'modal modal-upload';
+    modalContent.innerHTML = `
+        <div class="modal-header">
+            <h2>📤 Upload de Mídia</h2>
+            <button class="modal-close" onclick="fecharModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="formUpload">
+                <div class="form-group">
+                    <label class="form-label">Título *</label>
+                    <input type="text" class="form-input" name="titulo" required placeholder="Nome do conteúdo">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" name="tipo">
+                            <option value="carrossel">📸 Carrossel</option>
+                            <option value="reels">🎬 Reels / Vídeo</option>
+                            <option value="static">🖼️ Imagem Única</option>
+                            <option value="stories">📱 Stories</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data</label>
+                        <input type="date" class="form-input" name="data_publicacao">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Legenda</label>
+                    <textarea class="form-textarea" name="legenda" rows="3" placeholder="Legenda para Instagram..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Arquivos</label>
+                    <div id="uploadContainer"></div>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-primary" onclick="salvarUpload()">💾 Salvar na Biblioteca</button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+
+    // Inicializar área de upload
+    criarAreaUpload('uploadContainer', {
+        multiplo: true,
+        maxArquivos: 10,
+        onUploadComplete: (resultados) => {
+            uploadState.uploadedFiles = resultados;
+            showToast('Arquivos prontos para salvar!', 'success');
+        }
+    });
+}
+
+async function salvarUpload() {
+    const form = document.getElementById('formUpload');
+    const formData = new FormData(form);
+
+    const titulo = formData.get('titulo');
+    if (!titulo) {
+        showToast('Preencha o título', 'error');
+        return;
+    }
+
+    // Primeiro fazer upload dos arquivos se houver
+    if (uploadState.files.length > 0 && !uploadState.uploadedFiles) {
+        showToast('Enviando arquivos...', 'info');
+        uploadState.uploadedFiles = await uploadMultiplosArquivos(uploadState.files, 'biblioteca');
+    }
+
+    const dados = {
+        empresa_id: state.empresa.id,
+        titulo: titulo,
+        tipo: formData.get('tipo'),
+        data_publicacao: formData.get('data_publicacao') || null,
+        legenda: formData.get('legenda') || null,
+        midia_urls: uploadState.uploadedFiles || [],
+        thumbnail_url: uploadState.uploadedFiles?.[0]?.url || null
+    };
+
+    try {
+        const { data, error } = await supabase
+            .from('conteudos_prontos')
+            .insert([dados])
+            .select();
+
+        if (error) throw error;
+
+        showToast('Conteúdo salvo na biblioteca!', 'success');
+        uploadState.uploadedFiles = null;
+        uploadState.files = [];
+        fecharModal();
+
+        // Recarregar biblioteca se estiver visível
+        if (document.getElementById('bibliotecaGrid')) {
+            carregarBiblioteca();
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        showToast('Erro ao salvar: ' + error.message, 'error');
+    }
+}
+
+async function visualizarMidia(id) {
+    const item = await buscarConteudoPronto(id);
+    if (!item) return;
+
+    const modal = document.getElementById('modalOverlay');
+    const modalContent = document.getElementById('modalContent');
+    const midias = item.midia_urls || [];
+
+    modalContent.className = 'modal modal-visualizacao-midia';
+    modalContent.innerHTML = `
+        <div class="modal-header">
+            <h2>${item.titulo}</h2>
+            <button class="modal-close" onclick="fecharModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="galeria-viewer">
+                ${midias.length > 0 ? `
+                    <div class="galeria-main">
+                        ${midias[0].type === 'video' ? `
+                            <video src="${midias[0].url}" controls class="galeria-media-main"></video>
+                        ` : `
+                            <img src="${midias[0].url}" class="galeria-media-main" alt="${item.titulo}">
+                        `}
+                    </div>
+                    ${midias.length > 1 ? `
+                        <div class="galeria-thumbs">
+                            ${midias.map((m, i) => `
+                                <div class="galeria-thumb ${i === 0 ? 'active' : ''}" onclick="trocarMidiaGaleria(${i}, '${m.url}', '${m.type}')">
+                                    ${m.type === 'video' ? `
+                                        <video src="${m.url}"></video>
+                                        <div class="thumb-play">▶</div>
+                                    ` : `
+                                        <img src="${m.url}" alt="Slide ${i + 1}">
+                                    `}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                ` : '<p class="empty-state">Sem mídia anexada</p>'}
+            </div>
+            ${item.legenda ? `
+                <div class="galeria-legenda">
+                    <h4>Legenda</h4>
+                    <p>${item.legenda}</p>
+                    <button class="btn-copy" onclick="copiarLegenda('${item.legenda.replace(/'/g, "\\'")}')">📋 Copiar</button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+function trocarMidiaGaleria(index, url, type) {
+    const container = document.querySelector('.galeria-main');
+    const thumbs = document.querySelectorAll('.galeria-thumb');
+
+    thumbs.forEach((t, i) => t.classList.toggle('active', i === index));
+
+    if (type === 'video') {
+        container.innerHTML = `<video src="${url}" controls class="galeria-media-main" autoplay></video>`;
+    } else {
+        container.innerHTML = `<img src="${url}" class="galeria-media-main">`;
+    }
+}
+
+function copiarLegenda(texto) {
+    navigator.clipboard.writeText(texto).then(() => {
+        showToast('Legenda copiada!', 'success');
+    }).catch(() => {
+        showToast('Erro ao copiar', 'error');
+    });
+}
+
+async function buscarConteudoPronto(id) {
+    try {
+        const { data, error } = await supabase
+            .from('conteudos_prontos')
+            .select('*')
+            .eq('id', id)
+            .single();
+
+        if (error) throw error;
+        return data;
+    } catch (error) {
+        console.error('Erro ao buscar:', error);
+        return null;
+    }
+}
+
+async function excluirMidia(id) {
+    if (!confirm('Excluir este conteúdo da biblioteca?')) return;
+
+    try {
+        const item = await buscarConteudoPronto(id);
+
+        // Deletar arquivos do storage
+        if (item && item.midia_urls) {
+            for (const m of item.midia_urls) {
+                if (m.path) await deletarArquivo(m.path);
+            }
+        }
+
+        // Deletar do banco
+        const { error } = await supabase
+            .from('conteudos_prontos')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        showToast('Conteúdo excluído!', 'success');
+        carregarBiblioteca();
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        showToast('Erro ao excluir', 'error');
+    }
+}
+
+function editarMidia(id) {
+    // Redirecionar para modal de edição
+    abrirModalEditarMidia(id);
+}
+
+async function abrirModalEditarMidia(id) {
+    const item = await buscarConteudoPronto(id);
+    if (!item) return;
+
+    const modal = document.getElementById('modalOverlay');
+    const modalContent = document.getElementById('modalContent');
+
+    modalContent.className = 'modal modal-editar-midia';
+    modalContent.innerHTML = `
+        <div class="modal-header">
+            <h2>✏️ Editar Conteúdo</h2>
+            <button class="modal-close" onclick="fecharModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <form id="formEditarMidia">
+                <input type="hidden" name="id" value="${item.id}">
+                <div class="form-group">
+                    <label class="form-label">Título</label>
+                    <input type="text" class="form-input" name="titulo" value="${item.titulo}" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Tipo</label>
+                        <select class="form-select" name="tipo">
+                            <option value="carrossel" ${item.tipo === 'carrossel' ? 'selected' : ''}>📸 Carrossel</option>
+                            <option value="reels" ${item.tipo === 'reels' ? 'selected' : ''}>🎬 Reels</option>
+                            <option value="static" ${item.tipo === 'static' ? 'selected' : ''}>🖼️ Imagem</option>
+                            <option value="stories" ${item.tipo === 'stories' ? 'selected' : ''}>📱 Stories</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Data</label>
+                        <input type="date" class="form-input" name="data_publicacao" value="${item.data_publicacao || ''}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Legenda</label>
+                    <textarea class="form-textarea" name="legenda" rows="4">${item.legenda || ''}</textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-danger" onclick="excluirMidia('${item.id}')">🗑️ Excluir</button>
+            <button class="btn-secondary" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-primary" onclick="salvarEdicaoMidia()">💾 Salvar</button>
+        </div>
+    `;
+
+    modal.classList.remove('hidden');
+}
+
+async function salvarEdicaoMidia() {
+    const form = document.getElementById('formEditarMidia');
+    const formData = new FormData(form);
+    const id = formData.get('id');
+
+    const dados = {
+        titulo: formData.get('titulo'),
+        tipo: formData.get('tipo'),
+        data_publicacao: formData.get('data_publicacao') || null,
+        legenda: formData.get('legenda') || null
+    };
+
+    try {
+        const { error } = await supabase
+            .from('conteudos_prontos')
+            .update(dados)
+            .eq('id', id);
+
+        if (error) throw error;
+
+        showToast('Conteúdo atualizado!', 'success');
+        fecharModal();
+        carregarBiblioteca();
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        showToast('Erro ao salvar', 'error');
+    }
+}
+
+// =====================================================
+// INICIALIZAÇÃO BIBLIOTECA
+// =====================================================
+
+// Adicionar listener para tab biblioteca se existir
+document.addEventListener('DOMContentLoaded', () => {
+    const navItems = document.querySelectorAll('.nav-item');
+    navItems.forEach(item => {
+        if (item.dataset.tab === 'biblioteca') {
+            item.addEventListener('click', () => {
+                setTimeout(carregarBiblioteca, 100);
+            });
+        }
+    });
+});
+
+console.log('📤 Sistema de Upload carregado!');
