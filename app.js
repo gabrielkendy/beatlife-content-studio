@@ -1,9 +1,11 @@
 /* ========================================
-   BEATLIFE CONTENT STUDIO v5.0
+   BEATLIFE CONTENT STUDIO v6.0
    JavaScript Limpo e Funcional
    + Markdown Support
    + Claude Desktop API
    + Assistente IA com Gemini
+   + Sistema de Aprovação de Posts
+   + API Automatizada para n8n
    ======================================== */
 
 // ====================
@@ -18,6 +20,13 @@ const STATUS = {
     em_producao: { label: 'Em Producao', cor: 'warning' },
     pronto: { label: 'Pronto', cor: 'success' },
     publicado: { label: 'Publicado', cor: 'gold' }
+};
+
+// Status de aprovação
+const APPROVAL_STATUS = {
+    pendente: { label: 'Pendente', cor: 'warning', icon: '⏳' },
+    aprovado: { label: 'Aprovado', cor: 'success', icon: '✅' },
+    ajuste: { label: 'Ajuste Solicitado', cor: 'danger', icon: '✏️' }
 };
 
 // Estado global
@@ -261,7 +270,12 @@ const App = {
         let items = state.biblioteca;
 
         if (state.filtro !== 'todos') {
-            items = items.filter(i => i.tipo === state.filtro);
+            // Filtro especial para status de aprovação
+            if (state.filtro === 'pendente' || state.filtro === 'aprovado' || state.filtro === 'ajuste') {
+                items = items.filter(i => (i.approval_status || 'pendente') === state.filtro);
+            } else {
+                items = items.filter(i => i.tipo === state.filtro);
+            }
         }
 
         if (items.length === 0) {
@@ -281,6 +295,11 @@ const App = {
             const thumb = item.thumbnail_url || midias[0]?.url || '';
             const isVideo = midias[0]?.type === 'video';
             const isMarkdown = item.tipo === 'markdown';
+            
+            // Status de aprovação
+            const approvalStatus = item.approval_status || 'pendente';
+            const approval = APPROVAL_STATUS[approvalStatus] || APPROVAL_STATUS.pendente;
+            const hasAdjustments = item.adjustment_requests && item.adjustment_requests.length > 0;
 
             // Determinar o clique correto
             const clickHandler = isMarkdown
@@ -288,8 +307,8 @@ const App = {
                 : `App.verMidia('${item.id}')`;
 
             return `
-                <div class="biblioteca-item" onclick="${clickHandler}">
-                    <div class="biblioteca-thumb">
+                <div class="biblioteca-item" data-id="${item.id}">
+                    <div class="biblioteca-thumb" onclick="${clickHandler}">
                         ${isMarkdown
                             ? '<span style="font-size:48px">📄</span>'
                             : (thumb
@@ -301,9 +320,214 @@ const App = {
                         <div class="biblioteca-titulo">${item.titulo}</div>
                         <div class="biblioteca-data">${this.formatarData(item.created_at)}</div>
                     </div>
+                    
+                    <!-- Status de Aprovação -->
+                    <div class="approval-status-bar status-${approvalStatus}">
+                        <span class="approval-icon">${approval.icon}</span>
+                        <span class="approval-label">${approval.label}</span>
+                        ${hasAdjustments ? `<span class="adjustment-count" title="Ver histórico de ajustes">${item.adjustment_requests.length}</span>` : ''}
+                    </div>
+                    
+                    <!-- Botões de Ação -->
+                    <div class="approval-actions">
+                        ${approvalStatus !== 'aprovado' ? `
+                            <button class="btn-approve" onclick="event.stopPropagation(); App.aprovarConteudo('${item.id}')" title="Aprovar">
+                                ✅ Aprovar
+                            </button>
+                        ` : `
+                            <button class="btn-approved" disabled>
+                                ✅ Aprovado
+                            </button>
+                        `}
+                        <button class="btn-adjust" onclick="event.stopPropagation(); App.pedirAjuste('${item.id}')" title="Solicitar ajuste">
+                            ✏️ Ajuste
+                        </button>
+                        ${hasAdjustments ? `
+                            <button class="btn-history" onclick="event.stopPropagation(); App.verHistoricoAjustes('${item.id}')" title="Ver histórico">
+                                📋
+                            </button>
+                        ` : ''}
+                    </div>
                 </div>
             `;
         }).join('');
+    },
+
+    // Aprovar conteúdo
+    async aprovarConteudo(id) {
+        try {
+            const { error } = await db.from('conteudos_prontos').update({
+                approval_status: 'aprovado',
+                approved_at: new Date().toISOString(),
+                approved_by: 'Kendy' // Pode ser dinâmico depois
+            }).eq('id', id);
+
+            if (error) throw error;
+
+            // Atualizar state local
+            const item = state.biblioteca.find(i => i.id === id);
+            if (item) {
+                item.approval_status = 'aprovado';
+                item.approved_at = new Date().toISOString();
+            }
+
+            this.renderBiblioteca();
+            Toast.success('Conteúdo aprovado! ✅');
+        } catch (e) {
+            console.error('Erro ao aprovar:', e);
+            Toast.error('Erro ao aprovar conteúdo');
+        }
+    },
+
+    // Pedir ajuste - abre modal
+    pedirAjuste(id) {
+        const item = state.biblioteca.find(i => i.id === id);
+        if (!item) return;
+
+        Modal.open({
+            title: '✏️ Solicitar Ajuste',
+            body: `
+                <form id="formAjuste">
+                    <div class="adjustment-item-preview">
+                        <strong>${item.titulo}</strong>
+                        <span class="biblioteca-tipo">${item.tipo?.toUpperCase()}</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descreva o ajuste necessário *</label>
+                        <textarea class="form-textarea" name="ajuste" rows="5" placeholder="Ex: Trocar a cor do texto, ajustar o tamanho da fonte, mudar a imagem de fundo..." required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Prioridade</label>
+                        <select class="form-select" name="prioridade">
+                            <option value="baixa">Baixa - Pode esperar</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="alta">Alta - Urgente</option>
+                        </select>
+                    </div>
+                </form>
+            `,
+            footer: `
+                <button class="btn btn-secondary" onclick="Modal.close()">Cancelar</button>
+                <button class="btn btn-warning" onclick="App.salvarAjuste('${id}')">📤 Enviar Ajuste</button>
+            `
+        });
+    },
+
+    // Salvar ajuste
+    async salvarAjuste(id) {
+        const form = document.getElementById('formAjuste');
+        const formData = new FormData(form);
+        const ajusteTexto = formData.get('ajuste');
+        const prioridade = formData.get('prioridade');
+
+        if (!ajusteTexto.trim()) {
+            Toast.error('Descreva o ajuste necessário');
+            return;
+        }
+
+        try {
+            const item = state.biblioteca.find(i => i.id === id);
+            const ajustesAntigos = item?.adjustment_requests || [];
+
+            const novoAjuste = {
+                id: Date.now(),
+                texto: ajusteTexto,
+                prioridade,
+                data: new Date().toISOString(),
+                solicitante: 'Kendy', // Pode ser dinâmico
+                status: 'pendente'
+            };
+
+            const { error } = await db.from('conteudos_prontos').update({
+                approval_status: 'ajuste',
+                adjustment_requests: [...ajustesAntigos, novoAjuste]
+            }).eq('id', id);
+
+            if (error) throw error;
+
+            // Atualizar state local
+            if (item) {
+                item.approval_status = 'ajuste';
+                item.adjustment_requests = [...ajustesAntigos, novoAjuste];
+            }
+
+            Modal.close();
+            this.renderBiblioteca();
+            Toast.success('Ajuste solicitado! ✏️');
+        } catch (e) {
+            console.error('Erro ao salvar ajuste:', e);
+            Toast.error('Erro ao solicitar ajuste');
+        }
+    },
+
+    // Ver histórico de ajustes
+    verHistoricoAjustes(id) {
+        const item = state.biblioteca.find(i => i.id === id);
+        if (!item || !item.adjustment_requests) return;
+
+        const ajustes = item.adjustment_requests;
+
+        Modal.open({
+            title: '📋 Histórico de Ajustes',
+            body: `
+                <div class="adjustment-item-preview" style="margin-bottom: 16px;">
+                    <strong>${item.titulo}</strong>
+                </div>
+                <div class="adjustment-history">
+                    ${ajustes.map((adj, idx) => `
+                        <div class="adjustment-history-item prioridade-${adj.prioridade || 'normal'}">
+                            <div class="adjustment-header">
+                                <span class="adjustment-number">#${idx + 1}</span>
+                                <span class="adjustment-date">${this.formatarData(adj.data)}</span>
+                                <span class="adjustment-priority badge-${adj.prioridade}">${adj.prioridade}</span>
+                            </div>
+                            <div class="adjustment-text">${adj.texto}</div>
+                            <div class="adjustment-footer">
+                                <span>Por: ${adj.solicitante}</span>
+                                <span class="adjustment-status status-${adj.status}">${adj.status}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `,
+            footer: `
+                <button class="btn btn-secondary" onclick="Modal.close()">Fechar</button>
+                <button class="btn btn-success" onclick="App.marcarAjustesConcluidos('${id}')">✅ Marcar Todos Concluídos</button>
+            `
+        });
+    },
+
+    // Marcar ajustes como concluídos e voltar para pendente
+    async marcarAjustesConcluidos(id) {
+        try {
+            const item = state.biblioteca.find(i => i.id === id);
+            if (!item) return;
+
+            // Marcar todos ajustes como concluídos
+            const ajustesAtualizados = (item.adjustment_requests || []).map(adj => ({
+                ...adj,
+                status: 'concluido',
+                concluido_em: new Date().toISOString()
+            }));
+
+            const { error } = await db.from('conteudos_prontos').update({
+                approval_status: 'pendente',
+                adjustment_requests: ajustesAtualizados
+            }).eq('id', id);
+
+            if (error) throw error;
+
+            // Atualizar state local
+            item.approval_status = 'pendente';
+            item.adjustment_requests = ajustesAtualizados;
+
+            Modal.close();
+            this.renderBiblioteca();
+            Toast.success('Ajustes concluídos! Pronto para nova revisão.');
+        } catch (e) {
+            console.error('Erro:', e);
+            Toast.error('Erro ao atualizar ajustes');
+        }
     },
 
     // ====================
@@ -1288,11 +1512,163 @@ window.ClaudeAPI = ClaudeAPI;
 window.ContentStudioAPI = ClaudeAPI; // Alias
 
 // ====================
+// API EXPANDIDA PARA N8N E CLAUDE DESKTOP
+// ====================
+const AutomationAPI = {
+    // Adicionar conteúdo para aprovação (via n8n ou Claude Desktop)
+    async adicionarParaAprovacao(dados) {
+        if (!state.empresa) {
+            await App.carregarTudo(); // Garante que empresa está carregada
+        }
+
+        const { titulo, tipo, legenda, markdown_content, midia_urls, prioridade } = dados;
+
+        if (!titulo) {
+            throw new Error('Titulo e obrigatorio');
+        }
+
+        const novoConteudo = {
+            empresa_id: state.empresa.id,
+            titulo,
+            tipo: tipo || 'static',
+            legenda: legenda || null,
+            markdown_content: markdown_content || null,
+            midia_urls: midia_urls || [],
+            approval_status: 'pendente',
+            adjustment_requests: [],
+            criado_via: dados.fonte || 'automation',
+            prioridade_aprovacao: prioridade || 'normal',
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await db.from('conteudos_prontos').insert([novoConteudo]).select();
+        if (error) throw error;
+
+        await App.carregarTudo();
+        App.renderBiblioteca();
+
+        return { 
+            success: true, 
+            id: data[0].id, 
+            message: 'Conteúdo adicionado para aprovação!',
+            approval_status: 'pendente'
+        };
+    },
+
+    // Aprovar conteúdo via API
+    async aprovarConteudo(id) {
+        const { error } = await db.from('conteudos_prontos').update({
+            approval_status: 'aprovado',
+            approved_at: new Date().toISOString(),
+            approved_by: 'API'
+        }).eq('id', id);
+
+        if (error) throw error;
+
+        await App.carregarTudo();
+        return { success: true, message: 'Conteúdo aprovado!' };
+    },
+
+    // Solicitar ajuste via API
+    async solicitarAjuste(id, texto, prioridade = 'normal') {
+        if (!texto) throw new Error('Texto do ajuste é obrigatório');
+
+        const { data: item } = await db.from('conteudos_prontos').select('adjustment_requests').eq('id', id).single();
+        const ajustesAntigos = item?.adjustment_requests || [];
+
+        const novoAjuste = {
+            id: Date.now(),
+            texto,
+            prioridade,
+            data: new Date().toISOString(),
+            solicitante: 'API',
+            status: 'pendente'
+        };
+
+        const { error } = await db.from('conteudos_prontos').update({
+            approval_status: 'ajuste',
+            adjustment_requests: [...ajustesAntigos, novoAjuste]
+        }).eq('id', id);
+
+        if (error) throw error;
+
+        await App.carregarTudo();
+        return { success: true, message: 'Ajuste solicitado!' };
+    },
+
+    // Listar conteúdos por status de aprovação
+    async listarPorAprovacao(status = null) {
+        let query = db.from('conteudos_prontos').select('*').eq('empresa_id', state.empresa.id);
+        
+        if (status) {
+            query = query.eq('approval_status', status);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
+        if (error) throw error;
+
+        return data.map(i => ({
+            id: i.id,
+            titulo: i.titulo,
+            tipo: i.tipo,
+            approval_status: i.approval_status || 'pendente',
+            adjustment_count: (i.adjustment_requests || []).length,
+            created_at: i.created_at
+        }));
+    },
+
+    // Obter estatísticas de aprovação
+    async getStats() {
+        const items = state.biblioteca;
+        return {
+            total: items.length,
+            pendentes: items.filter(i => (i.approval_status || 'pendente') === 'pendente').length,
+            aprovados: items.filter(i => i.approval_status === 'aprovado').length,
+            ajustes: items.filter(i => i.approval_status === 'ajuste').length
+        };
+    },
+
+    // Webhook endpoint info para n8n
+    getWebhookInfo() {
+        return {
+            message: 'Para usar com n8n, configure um HTTP Request node:',
+            methods: {
+                adicionarParaAprovacao: {
+                    description: 'Adiciona novo conteúdo para aprovação',
+                    exemplo: `await AutomationAPI.adicionarParaAprovacao({
+                        titulo: 'Carrossel Treino',
+                        tipo: 'carrossel',
+                        legenda: 'Texto da legenda',
+                        fonte: 'n8n'
+                    })`
+                },
+                aprovarConteudo: {
+                    description: 'Aprova um conteúdo pelo ID',
+                    exemplo: `await AutomationAPI.aprovarConteudo('uuid-do-conteudo')`
+                },
+                solicitarAjuste: {
+                    description: 'Solicita ajuste em um conteúdo',
+                    exemplo: `await AutomationAPI.solicitarAjuste('uuid', 'Trocar a fonte', 'alta')`
+                },
+                listarPorAprovacao: {
+                    description: 'Lista conteúdos por status',
+                    exemplo: `await AutomationAPI.listarPorAprovacao('pendente')`
+                }
+            }
+        };
+    }
+};
+
+// Expor AutomationAPI globalmente
+window.AutomationAPI = AutomationAPI;
+window.n8nAPI = AutomationAPI; // Alias para n8n
+
+// ====================
 // GEMINI CONFIG
 // ====================
 const GEMINI_CONFIG = {
     API_KEY: 'AIzaSyDlZCMldW_3cINsM9x3r2RwquMHVjwXu30',
-    MODEL: 'gemini-1.5-flash',
+    MODEL: 'gemini-2.0-flash',
     BASE_URL: 'https://generativelanguage.googleapis.com/v1beta'
 };
 
@@ -1688,6 +2064,17 @@ const Toast = {
 // ====================
 document.addEventListener('DOMContentLoaded', () => App.init());
 
-console.log('Content Studio v5.0 carregado!');
-console.log('API disponivel: window.ClaudeAPI ou window.ContentStudioAPI');
-console.log('Assistente IA disponivel: window.Assistente');
+console.log('Content Studio v6.0 carregado!');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('📦 APIs disponíveis:');
+console.log('  • window.ClaudeAPI - API básica de conteúdo');
+console.log('  • window.AutomationAPI - API de aprovação e automação');
+console.log('  • window.n8nAPI - Alias para AutomationAPI');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('🤖 Para Claude Desktop / n8n:');
+console.log('  AutomationAPI.adicionarParaAprovacao({titulo, tipo, legenda})');
+console.log('  AutomationAPI.aprovarConteudo(id)');
+console.log('  AutomationAPI.solicitarAjuste(id, texto, prioridade)');
+console.log('  AutomationAPI.listarPorAprovacao(status)');
+console.log('  AutomationAPI.getStats()');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');

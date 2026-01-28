@@ -1454,3 +1454,313 @@ body {
         max-width: 95%;
     }
 }
+
+
+/* ====================
+   SISTEMA DE APROVAÇÃO v6.0
+   ==================== */
+
+/* Filtros de Aprovação */
+.filtro-divider {
+    color: var(--border);
+    padding: 0 8px;
+    font-weight: 300;
+}
+
+.filtro-approval {
+    border-color: var(--gold) !important;
+}
+
+.filtro-approval.active {
+    background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+    color: #000;
+}
+
+/* Biblioteca Item com Aprovação */
+.biblioteca-item {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.biblioteca-item .biblioteca-thumb {
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.biblioteca-item .biblioteca-thumb:hover {
+    transform: scale(1.02);
+}
+
+/* Barra de Status de Aprovação */
+.approval-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 0;
+    margin-top: auto;
+}
+
+.approval-status-bar.status-pendente {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ffc107;
+    border-left: 3px solid #ffc107;
+}
+
+.approval-status-bar.status-aprovado {
+    background: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    border-left: 3px solid #28a745;
+}
+
+.approval-status-bar.status-ajuste {
+    background: rgba(220, 53, 69, 0.15);
+    color: #dc3545;
+    border-left: 3px solid #dc3545;
+}
+
+.approval-icon {
+    font-size: 14px;
+}
+
+.approval-label {
+    flex: 1;
+}
+
+.adjustment-count {
+    background: var(--bg-hover);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* Botões de Ação de Aprovação */
+.approval-actions {
+    display: flex;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--bg-hover);
+    border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.btn-approve,
+.btn-adjust,
+.btn-history,
+.btn-approved {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.btn-approve {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.btn-approve:hover {
+    background: #28a745;
+    color: #fff;
+}
+
+.btn-approved {
+    background: rgba(40, 167, 69, 0.3);
+    color: #28a745;
+    cursor: default;
+    opacity: 0.8;
+}
+
+.btn-adjust {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.btn-adjust:hover {
+    background: #ffc107;
+    color: #000;
+}
+
+.btn-history {
+    flex: 0;
+    min-width: 36px;
+    background: rgba(108, 117, 125, 0.2);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.btn-history:hover {
+    background: var(--bg-card);
+    color: var(--text);
+}
+
+/* Preview do Item no Modal de Ajuste */
+.adjustment-item-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--bg-hover);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+}
+
+.adjustment-item-preview strong {
+    color: var(--text);
+}
+
+/* Histórico de Ajustes */
+.adjustment-history {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.adjustment-history-item {
+    background: var(--bg-hover);
+    border-radius: var(--radius);
+    padding: 16px;
+    border-left: 3px solid var(--border);
+}
+
+.adjustment-history-item.prioridade-alta {
+    border-left-color: #dc3545;
+}
+
+.adjustment-history-item.prioridade-normal {
+    border-left-color: #ffc107;
+}
+
+.adjustment-history-item.prioridade-baixa {
+    border-left-color: #6c757d;
+}
+
+.adjustment-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.adjustment-number {
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 14px;
+}
+
+.adjustment-date {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.adjustment-priority {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.adjustment-priority.badge-alta {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.adjustment-priority.badge-normal {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.adjustment-priority.badge-baixa {
+    background: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+}
+
+.adjustment-text {
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.adjustment-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.adjustment-status {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.adjustment-status.status-pendente {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.adjustment-status.status-concluido {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+/* Botão Warning */
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e0a800 0%, #c69500 100%);
+}
+
+/* Botão Success */
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: #fff;
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #1e7e34 0%, #155724 100%);
+}
+
+/* Responsivo */
+@media (max-width: 768px) {
+    .approval-actions {
+        flex-wrap: wrap;
+    }
+    
+    .btn-approve,
+    .btn-adjust {
+        flex: 1 1 45%;
+    }
+    
+    .btn-history {
+        flex: 0 0 auto;
+    }
+    
+    .filtro-divider {
+        display: none;
+    }
+    
+    .filtros {
+        flex-wrap: wrap;
+    }
+}
